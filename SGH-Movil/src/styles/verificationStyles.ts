@@ -10,7 +10,7 @@ export const verificationStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    backgroundColor: 'rgba(0, 0, 0, 2.0)',
     zIndex: 0,
   },
   container: {
@@ -52,17 +52,19 @@ export const verificationStyles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#fff',
     textAlign: 'center',
     marginBottom: 15,
     lineHeight: 20,
+    opacity: 1.0,
   },
   emailText: {
     fontSize: 13,
-    color: '#888',
+    color: '#fff',
     marginBottom: 25,
     textAlign: 'center',
     fontStyle: 'italic',
+    opacity: 1.0,
   },
   codeInput: {
     width: '70%',
