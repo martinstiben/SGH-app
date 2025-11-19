@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     zIndex: 0,
   },
   container: {
@@ -158,7 +158,7 @@ export const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginBottom: 25,
-    opacity: 0.9,
+    opacity: 1.0,
     lineHeight: 22,
   },
   emailText: {
@@ -166,7 +166,7 @@ export const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginBottom: 15,
-    opacity: 0.8,
+    opacity: 1.0,
     fontStyle: 'italic',
   },
   verificationLogo: {

@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginService, registerService, verifyCodeService } from '../api/services/authService';
-import { LoginRequest, RegisterRequest, VerifyCodeRequest } from '../api/types/auth';
+import { loginService, registerService, verifyCodeService, requestPasswordResetService, verifyPasswordResetService } from '../api/services/authService';
+import { LoginRequest, RegisterRequest, VerifyCodeRequest, PasswordResetRequest, PasswordResetVerifyRequest } from '../api/types/auth';
 
 interface AuthContextType {
   token: string | null;
@@ -9,6 +9,8 @@ interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<{ requiresVerification: boolean; message?: string }>;
   verifyCode: (request: VerifyCodeRequest) => Promise<void>;
   register: (request: RegisterRequest) => Promise<{ success: boolean; message: string }>;
+  requestPasswordReset: (request: PasswordResetRequest) => Promise<{ success: boolean; message: string }>;
+  verifyPasswordReset: (request: PasswordResetVerifyRequest) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
 }
 
@@ -60,13 +62,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { success: true, message: 'Usuario registrado exitosamente. Ahora puedes iniciar sesión.' };
   };
 
+  const requestPasswordReset = async (request: PasswordResetRequest) => {
+    const response = await requestPasswordResetService(request);
+    return { success: true, message: response.message };
+  };
+
+  const verifyPasswordReset = async (request: PasswordResetVerifyRequest) => {
+    const response = await verifyPasswordResetService(request);
+    return { success: true, message: response.message };
+  };
+
   const logout = async () => {
     setToken(null);
     await AsyncStorage.removeItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ token, loading, login, verifyCode, register, logout }}>
+    <AuthContext.Provider value={{ token, loading, login, verifyCode, register, requestPasswordReset, verifyPasswordReset, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, Image, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { styles } from '../../styles/loginStyles';
 import { useAuth } from '../../context/AuthContext';
 import CustomAlert from './CustomAlert';
 import { PasswordInput } from './PasswordInput';
 import { getRolesService } from '../../api/services/authService';
 import { Role, RegisterRequest } from '../../api/types/auth';
+import { RootStackParamList } from '../../navigation/AppNavigation';
 
 // Preload images to ensure they appear immediately
 const userIcon = require('../../assets/images/user.png');
@@ -15,7 +18,10 @@ interface LoginFormProps {
   onLoginSuccess: (email?: string) => void;
 }
 
+type LoginFormNavProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
+  const navigation = useNavigation<LoginFormNavProp>();
   const { login, register, verifyCode } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -186,6 +192,17 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           >
             <Text style={styles.loginButtonText}>
               {loading ? 'Cargando...' : 'Ingresar'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Enlace para recuperar contraseña */}
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => navigation.navigate('ForgotPassword')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.switchButtonText}>
+              ¿Olvidaste tu contraseña?
             </Text>
           </TouchableOpacity>
 

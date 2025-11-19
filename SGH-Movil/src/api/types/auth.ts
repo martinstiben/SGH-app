@@ -33,3 +33,21 @@ export interface Role {
   value: string;
   label: string;
 }
+
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetRequestResponse {
+  message: string;
+}
+
+export interface PasswordResetVerifyRequest {
+  email: string;
+  verificationCode: string;
+  newPassword: string;
+}
+
+export interface PasswordResetVerifyResponse {
+  message: string;
+}

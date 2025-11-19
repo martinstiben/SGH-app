@@ -1,5 +1,5 @@
 import { API_URL } from '../constant/api';
-import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, Role, VerifyCodeRequest, VerifyCodeResponse } from '../types/auth';
+import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, Role, VerifyCodeRequest, VerifyCodeResponse, PasswordResetRequest, PasswordResetRequestResponse, PasswordResetVerifyRequest, PasswordResetVerifyResponse } from '../types/auth';
 
 export async function loginService(credentials: LoginRequest): Promise<{ requiresVerification: boolean; message?: string }> {
   const response = await fetch(`${API_URL}/auth/login`, {
@@ -71,4 +71,40 @@ export async function getRolesService(): Promise<{ roles: Role[] }> {
   }
 
   return data as { roles: Role[] };
+}
+
+export async function requestPasswordResetService(request: PasswordResetRequest): Promise<PasswordResetRequestResponse> {
+  const response = await fetch(`${API_URL}/auth/request-password-reset`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  const data = (await response.json()) as PasswordResetRequestResponse | { error?: string };
+
+  if (!response.ok) {
+    throw new Error((data as any).error || 'Failed to request password reset');
+  }
+
+  return data as PasswordResetRequestResponse;
+}
+
+export async function verifyPasswordResetService(request: PasswordResetVerifyRequest): Promise<PasswordResetVerifyResponse> {
+  const response = await fetch(`${API_URL}/auth/verify-reset-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  const data = (await response.json()) as PasswordResetVerifyResponse | { error?: string };
+
+  if (!response.ok) {
+    throw new Error((data as any).error || 'Failed to reset password');
+  }
+
+  return data as PasswordResetVerifyResponse;
 }
