@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Image,
@@ -6,7 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   ImageBackground,
+  ActivityIndicator,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +28,20 @@ export default function VerificationCodeScreen() {
   const route = useRoute<VerificationCodeRouteProp>();
   const { email } = route.params;
   const { verifyCode } = useAuth();
+
+  useEffect(() => {
+    // Configurar status bar transparente para verificación
+    StatusBar.setBarStyle('light-content');
+    StatusBar.setBackgroundColor('transparent');
+    StatusBar.setTranslucent(true);
+
+    return () => {
+      // Restaurar status bar por defecto al salir
+      StatusBar.setBarStyle('light-content');
+      StatusBar.setBackgroundColor('#3b82f6');
+      StatusBar.setTranslucent(false);
+    };
+  }, []);
 
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,11 +74,12 @@ export default function VerificationCodeScreen() {
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/images/background.jpg')}
-      style={verificationStyles.backgroundImage}
-      resizeMode="cover"
-    >
+    <SafeAreaView style={{ flex: 1 }}>
+      <ImageBackground
+        source={require('../assets/images/background.jpg')}
+        style={verificationStyles.backgroundImage}
+        resizeMode="cover"
+      >
       <View style={verificationStyles.darkOverlay} pointerEvents="none" />
       <View style={verificationStyles.container}>
         <View style={verificationStyles.card}>
@@ -79,6 +97,10 @@ export default function VerificationCodeScreen() {
             Código enviado a: {email}
           </Text>
 
+          <Text style={verificationStyles.instructionText}>
+            Ingresa el código de 6 dígitos que recibiste
+          </Text>
+
           <TextInput
             style={verificationStyles.codeInput}
             placeholder="000000"
@@ -88,6 +110,7 @@ export default function VerificationCodeScreen() {
             keyboardType="numeric"
             maxLength={6}
             textAlign="center"
+            autoFocus={true}
           />
 
           <TouchableOpacity
@@ -95,9 +118,14 @@ export default function VerificationCodeScreen() {
             onPress={handleVerifyCode}
             disabled={loading}
           >
-            <Text style={verificationStyles.verifyButtonText}>
-              {loading ? 'Verificando...' : 'Verificar código'}
-            </Text>
+            {loading ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                <Text style={verificationStyles.verifyButtonText}>Verificando...</Text>
+              </View>
+            ) : (
+              <Text style={verificationStyles.verifyButtonText}>Verificar código</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -118,5 +146,6 @@ export default function VerificationCodeScreen() {
         onClose={() => setAlertVisible(false)}
       />
     </ImageBackground>
+    </SafeAreaView>
   );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ImageBackground,
   View,
@@ -7,7 +7,9 @@ import {
   Platform,
   ScrollView,
   Text,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -21,21 +23,36 @@ type LoginNavProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 export default function LoginScreen() {
   const navigation = useNavigation<LoginNavProp>();
 
+  useEffect(() => {
+    // Configurar status bar transparente para login
+    StatusBar.setBarStyle('light-content');
+    StatusBar.setBackgroundColor('transparent');
+    StatusBar.setTranslucent(true);
+
+    return () => {
+      // Restaurar status bar por defecto al salir
+      StatusBar.setBarStyle('light-content');
+      StatusBar.setBackgroundColor('#3b82f6');
+      StatusBar.setTranslucent(false);
+    };
+  }, []);
+
   const handleLoginSuccess = (email?: string) => {
     if (email) {
       // Navigate to verification screen after successful login
       navigation.navigate('VerificationCode', { email });
     } else {
-      // Navigate directly to schedules
-      navigation.replace('Schedules');
+      // Navigate directly to main tabs
+      navigation.replace('MainTabs');
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ImageBackground
         source={require('../assets/images/background.jpg')}
         style={styles.backgroundImage}
@@ -69,5 +86,6 @@ export default function LoginScreen() {
         </ScrollView>
       </ImageBackground>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

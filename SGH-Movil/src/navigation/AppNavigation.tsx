@@ -34,7 +34,7 @@ export default function AppNavigation() {
 
   return (
     <Stack.Navigator
-      initialRouteName="Splash"
+      initialRouteName={token ? "MainTabs" : "Splash"}
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="Splash" component={SplashScreen} />

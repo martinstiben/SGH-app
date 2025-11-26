@@ -73,8 +73,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    setToken(null);
-    await AsyncStorage.removeItem('token');
+    try {
+      setToken(null);
+      await AsyncStorage.removeItem('token');
+      console.log('Sesión cerrada exitosamente');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
 
   return (

@@ -51,6 +51,10 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
+  editPhotoButtonDisabled: {
+    backgroundColor: '#9ca3af',
+    opacity: 0.7,
+  },
   editPhotoText: {
     color: '#ffffff',
     fontSize: 14,

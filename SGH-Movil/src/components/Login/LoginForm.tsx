@@ -200,7 +200,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.formContainer}>
+    <ScrollView contentContainerStyle={styles.formContainer} key={isRegistering ? 'register' : 'login'}>
       {!isRegistering ? (
         <>
           {/* Login Form */}

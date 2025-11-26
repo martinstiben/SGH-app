@@ -1,5 +1,5 @@
 import { API_URL } from '../constant/api';
-import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, Role, VerifyCodeRequest, VerifyCodeResponse, PasswordResetRequest, PasswordResetRequestResponse, PasswordResetVerifyRequest, PasswordResetVerifyResponse } from '../types/auth';
+import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, Role, VerifyCodeRequest, VerifyCodeResponse, PasswordResetRequest, PasswordResetRequestResponse, PasswordResetVerifyRequest, PasswordResetVerifyResponse, UserProfile } from '../types/auth';
 
 export async function loginService(credentials: LoginRequest): Promise<{ requiresVerification: boolean; message?: string }> {
   const response = await fetch(`${API_URL}/auth/login`, {
@@ -109,13 +109,6 @@ export async function verifyPasswordResetService(request: PasswordResetVerifyReq
   return data as PasswordResetVerifyResponse;
 }
 
-export interface UserProfile {
-  userId: number;
-  name: string;
-  email: string;
-  role: string;
-}
-
 export async function getProfileService(token: string): Promise<UserProfile> {
   const response = await fetch(`${API_URL}/auth/profile`, {
     method: 'GET',
@@ -125,11 +118,55 @@ export async function getProfileService(token: string): Promise<UserProfile> {
     },
   });
 
-  const data = (await response.json()) as UserProfile | { error?: string };
+  const data = (await response.json()) as any;
 
   if (!response.ok) {
-    throw new Error((data as any).error || 'Failed to fetch profile');
+    throw new Error(data.error || 'Failed to fetch profile');
   }
 
-  return data as UserProfile;
+  // Crear el perfil con la URL de la foto si existe
+  const profile: UserProfile = {
+    userId: data.userId,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    photoUrl: data.userId ? `${API_URL}/users/${data.userId}/photo` : undefined,
+  };
+
+  return profile;
+}
+
+export async function uploadProfileImageService(token: string, imageUri: string): Promise<{ message: string }> {
+  const formData = new FormData();
+
+  // Obtener el nombre del archivo de la URI
+  const fileName = imageUri.split('/').pop() || 'profile-image.jpg';
+  const fileType = 'image/jpeg'; // Asumimos JPEG, pero se puede detectar del archivo
+
+  // Crear el blob para FormData
+  const response = await fetch(imageUri);
+  const blob = await response.blob();
+
+  formData.append('photo', {
+    uri: imageUri,
+    name: fileName,
+    type: fileType,
+  } as any);
+
+  const uploadResponse = await fetch(`${API_URL}/auth/profile`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // No incluir Content-Type, dejar que fetch lo determine automáticamente para FormData
+    },
+    body: formData,
+  });
+
+  const data = await uploadResponse.json();
+
+  if (!uploadResponse.ok) {
+    throw new Error(data.error || 'Failed to upload profile image');
+  }
+
+  return data as { message: string };
 }

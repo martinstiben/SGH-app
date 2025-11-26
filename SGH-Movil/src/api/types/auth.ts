@@ -53,3 +53,11 @@ export interface PasswordResetVerifyRequest {
 export interface PasswordResetVerifyResponse {
   message: string;
 }
+
+export interface UserProfile {
+  userId: number;
+  name: string;
+  email: string;
+  role: string;
+  photoUrl?: string;
+}

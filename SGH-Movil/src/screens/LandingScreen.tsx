@@ -1,5 +1,6 @@
-import React from 'react';
-import { ScrollView, Image, View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect } from 'react';
+import { ScrollView, Image, View, Text, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from '../styles/landingStyles';
 import Header from '../components/Genericos/Header';
@@ -13,12 +14,25 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 export default function LandingScreen() {
   const navigation = useNavigation<NavigationProp>();
 
+  useEffect(() => {
+    // Configurar status bar azul para landing page
+    StatusBar.setBarStyle('light-content');
+    StatusBar.setBackgroundColor('#3b82f6');
+
+    return () => {
+      // Restaurar status bar por defecto al salir
+      StatusBar.setBarStyle('light-content');
+      StatusBar.setBackgroundColor('#3b82f6');
+    };
+  }, []);
+
   const handleLogin = () => {
     navigation.navigate('Login');
   };
 
   return (
-    <ScrollView style={styles.mainContainer} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView style={styles.mainContainer} showsVerticalScrollIndicator={false}>
       {/* Header principal */}
       <Header
         title="SGH"
@@ -120,5 +134,6 @@ export default function LandingScreen() {
         </Text>
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }

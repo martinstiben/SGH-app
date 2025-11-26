@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
-import { getProfileService } from '../api/services/authService';
+import { getProfileService, uploadProfileImageService } from '../api/services/authService';
+import { UserProfile } from '../api/types/auth';
 import { styles } from '../styles/profileStyles';
-
-interface UserProfile {
-  userId: number;
-  name: string;
-  email: string;
-  role: string;
-  photoUrl?: string;
-}
+import CustomAlert from '../components/Genericos/CustomAlert';
 
 export default function ProfileScreen() {
   const { token, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Estados para alertas personalizadas
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
 
   useEffect(() => {
     loadProfile();
@@ -31,36 +33,90 @@ export default function ProfileScreen() {
       setProfile(profileData);
     } catch (error) {
       console.error('Error loading profile:', error);
-      Alert.alert('Error', 'No se pudo cargar el perfil');
+      setAlertTitle('Error');
+      setAlertMessage('No se pudo cargar el perfil');
+      setAlertType('error');
+      setAlertVisible(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditPhoto = () => {
-    // TODO: Implementar selección de imagen
-    Alert.alert('Editar Foto', 'Funcionalidad de edición de foto próximamente');
+  const handleEditPhoto = async () => {
+    try {
+      // Solicitar permisos para acceder a la galería
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== 'granted') {
+        setAlertTitle('Permisos requeridos');
+        setAlertMessage('Necesitamos acceso a tu galería para seleccionar una foto de perfil.');
+        setAlertType('warning');
+        setAlertVisible(true);
+        return;
+      }
+
+      // Abrir selector de imagen
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1], // Imagen cuadrada
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+
+        // Subir la imagen al backend PRIMERO
+        setUploadingImage(true);
+        try {
+          if (token) {
+            await uploadProfileImageService(token, imageUri);
+
+            // Solo si la subida es exitosa, recargar el perfil para obtener la nueva imagen del servidor
+            await loadProfile();
+
+            setAlertTitle('¡Foto actualizada!');
+            setAlertMessage('Tu foto de perfil se ha actualizado correctamente.');
+            setAlertType('success');
+            setAlertVisible(true);
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          setAlertTitle('Error al subir imagen');
+          setAlertMessage('No se pudo subir la imagen al servidor. Inténtalo de nuevo.');
+          setAlertType('error');
+          setAlertVisible(true);
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error selecting image:', error);
+      setAlertTitle('Error');
+      setAlertMessage('No se pudo seleccionar la imagen. Inténtalo de nuevo.');
+      setAlertType('error');
+      setAlertVisible(true);
+    }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que quieres cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-            } catch (error) {
-              console.error('Error during logout:', error);
-            }
-          },
-        },
-      ]
-    );
+    setAlertTitle('Cerrar Sesión');
+    setAlertMessage('¿Estás seguro de que quieres cerrar sesión?');
+    setAlertType('warning');
+    setAlertVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setAlertVisible(false);
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Error during logout:', error);
+      setAlertTitle('Error');
+      setAlertMessage('No se pudo cerrar la sesión correctamente.');
+      setAlertType('error');
+      setAlertVisible(true);
+    }
   };
 
   if (loading) {
@@ -97,8 +153,16 @@ export default function ProfileScreen() {
             }
             style={styles.profilePhoto}
           />
-          <TouchableOpacity style={styles.editPhotoButton} onPress={handleEditPhoto}>
-            <Text style={styles.editPhotoText}>Editar</Text>
+          <TouchableOpacity
+            style={[styles.editPhotoButton, uploadingImage && styles.editPhotoButtonDisabled]}
+            onPress={handleEditPhoto}
+            disabled={uploadingImage}
+          >
+            {uploadingImage ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.editPhotoText}>Editar</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -122,11 +186,6 @@ export default function ProfileScreen() {
                profile.role}
             </Text>
           </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ID Usuario:</Text>
-            <Text style={styles.infoValue}>{profile.userId}</Text>
-          </View>
         </View>
       </View>
 
@@ -134,6 +193,20 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
       </TouchableOpacity>
+
+      {/* Alerta personalizada */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        onClose={() => setAlertVisible(false)}
+        onConfirm={alertType === 'warning' ? confirmLogout : undefined}
+        confirmText="Cerrar Sesión"
+        cancelText="Cancelar"
+        autoClose={alertType === 'success'}
+        autoCloseDelay={2000}
+      />
     </View>
   );
 }

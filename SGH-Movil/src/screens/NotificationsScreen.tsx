@@ -1,21 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, Text, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { getActiveNotifications, markNotificationAsRead } from '../api/services/notificationService';
+import { InAppNotification } from '../api/types/notifications';
 import { styles } from '../styles/notificationsStyles';
-
-interface Notification {
-  id: number;
-  title: string;
-  message: string;
-  type: string;
-  priority: string;
-  isRead: boolean;
-  createdAt: string;
-}
 
 export default function NotificationsScreen() {
   const { token } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -29,52 +21,12 @@ export default function NotificationsScreen() {
 
     try {
       setLoading(true);
-      // TODO: Implementar llamada a API de notificaciones InApp cuando esté disponible
-      // const data = await getInAppNotifications(token);
-      // setNotifications(data);
-
-      // Datos de ejemplo por ahora - simulando notificaciones del backend
-      const mockNotifications: Notification[] = [
-        {
-          id: 1,
-          title: 'Nuevo horario asignado',
-          message: 'Se te ha asignado un nuevo horario para Matemáticas III el lunes de 8:00 a 10:00',
-          type: 'SCHEDULE',
-          priority: 'HIGH',
-          isRead: false,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          title: 'Recordatorio de clase',
-          message: 'Tu clase de Física II comienza en 30 minutos en el aula A-101',
-          type: 'REMINDER',
-          priority: 'MEDIUM',
-          isRead: false,
-          createdAt: new Date(Date.now() - 1800000).toISOString(),
-        },
-        {
-          id: 3,
-          title: 'Cambio de horario',
-          message: 'El horario de Programación I ha sido modificado. Nueva hora: 14:00 - 16:00',
-          type: 'SCHEDULE',
-          priority: 'HIGH',
-          isRead: true,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: 4,
-          title: 'Bienvenido al sistema',
-          message: 'Tu cuenta ha sido activada exitosamente. Ya puedes acceder a tus horarios.',
-          type: 'SYSTEM',
-          priority: 'LOW',
-          isRead: true,
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-        },
-      ];
-      setNotifications(mockNotifications);
+      const response = await getActiveNotifications(token);
+      setNotifications(response.content);
     } catch (error) {
       console.error('Error loading notifications:', error);
+      // En caso de error, mostrar lista vacía
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -86,19 +38,31 @@ export default function NotificationsScreen() {
     setRefreshing(false);
   };
 
-  const markAsRead = (id: number) => {
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.id === id ? { ...notif, isRead: true } : notif
-      )
-    );
-    // TODO: Llamar API para marcar como leída
+  const markAsRead = async (notificationId: number) => {
+    try {
+      // Marcar como leída localmente primero
+      setNotifications(prev =>
+        prev.map(notif =>
+          notif.notificationId === notificationId ? { ...notif, isRead: true } : notif
+        )
+      );
+      // Llamar API para marcar como leída en el backend
+      await markNotificationAsRead(token!, notificationId);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      // Revertir el cambio local en caso de error
+      setNotifications(prev =>
+        prev.map(notif =>
+          notif.notificationId === notificationId ? { ...notif, isRead: false } : notif
+        )
+      );
+    }
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => (
+  const renderNotification = ({ item }: { item: InAppNotification }) => (
     <TouchableOpacity
       style={[styles.notificationCard, !item.isRead && styles.unreadCard]}
-      onPress={() => markAsRead(item.id)}
+      onPress={() => markAsRead(item.notificationId)}
     >
       <View style={styles.notificationHeader}>
         <Text style={styles.notificationTitle}>{item.title}</Text>
@@ -108,8 +72,8 @@ export default function NotificationsScreen() {
       </View>
       <Text style={styles.notificationMessage}>{item.message}</Text>
       <View style={styles.notificationFooter}>
-        <Text style={[styles.notificationType, getTypeStyle(item.type)]}>
-          {item.type}
+        <Text style={[styles.notificationType, getTypeStyle(item.notificationType)]}>
+          {item.notificationType}
         </Text>
         <Text style={[styles.notificationPriority, getPriorityStyle(item.priority)]}>
           {item.priority}
@@ -149,7 +113,7 @@ export default function NotificationsScreen() {
 
       <FlatList
         data={notifications}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.notificationId.toString()}
         renderItem={renderNotification}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
