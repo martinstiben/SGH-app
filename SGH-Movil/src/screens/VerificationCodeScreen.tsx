@@ -45,8 +45,8 @@ export default function VerificationCodeScreen() {
     try {
       await verifyCode({ email, code: verificationCode });
 
-      // Navigate directly to schedules without showing alert
-      navigation.replace('Schedules');
+      // Navigate directly to main tabs without showing alert
+      navigation.replace('MainTabs');
     } catch (error: any) {
       setAlertTitle('Código incorrecto');
       setAlertMessage('El código de verificación es incorrecto. Inténtalo de nuevo.');

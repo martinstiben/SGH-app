@@ -108,3 +108,28 @@ export async function verifyPasswordResetService(request: PasswordResetVerifyReq
 
   return data as PasswordResetVerifyResponse;
 }
+
+export interface UserProfile {
+  userId: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export async function getProfileService(token: string): Promise<UserProfile> {
+  const response = await fetch(`${API_URL}/auth/profile`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = (await response.json()) as UserProfile | { error?: string };
+
+  if (!response.ok) {
+    throw new Error((data as any).error || 'Failed to fetch profile');
+  }
+
+  return data as UserProfile;
+}

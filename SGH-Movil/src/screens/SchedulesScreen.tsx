@@ -1,147 +1,115 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, FlatList, ActivityIndicator, Image, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, FlatList, ActivityIndicator, Text, Animated, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { getAllSchedules } from '../api/services/scheduleCrudService';
-import { getAllCourses } from '../api/services/courseCrudService';
+import { getUserSchedules } from '../api/services/scheduleService';
+import { getProfileService, UserProfile } from '../api/services/authService';
 import { ScheduleDTO } from '../api/types/schedules';
-import { CourseDTO } from '../api/types/courses';
-import ScheduleCard from '../components/Schedules/ScheduleCard';
-import Pagination from '../components/Schedules/Pagination';
-import SearchBar from '../components/Schedules/SearchBar';
+import ScheduleItem from '../components/Schedules/ScheduleItem';
 import { styles } from '../styles/schedulesStyles';
-
-interface CourseGroup {
-  courseId: number;
-  schedules: ScheduleDTO[];
-}
 
 export default function SchedulesScreen() {
   const { token, loading: authLoading } = useAuth();
-  const [allCourses, setAllCourses] = useState<CourseDTO[]>([]);
-  const [allSchedules, setAllSchedules] = useState<CourseGroup[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<CourseGroup[]>([]);
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(0);
-  const pageSize = 5;
-  const [loading, setLoading] = useState(false);
+  const [userSchedules, setUserSchedules] = useState<ScheduleDTO[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const fadeAnim = new Animated.Value(0);
 
-  // 🔹 Traer cursos
+  // Cargar perfil y horarios del usuario
   useEffect(() => {
     if (authLoading || !token) return;
-    const fetchCourses = async () => {
-      try {
-        const data = await getAllCourses(token);
-        setAllCourses(data);
-      } catch (err) {
-        console.error('Error fetching courses', err);
-      }
-    };
-    fetchCourses();
+    loadUserData();
   }, [token, authLoading]);
 
-  // 🔹 Traer horarios y agrupar por courseId
-  useEffect(() => {
-    if (authLoading || !token) return;
-    const fetchSchedules = async () => {
+  const loadUserData = async () => {
+    if (!token) return;
+
+    try {
       setLoading(true);
-      try {
-        const data = await getAllSchedules(token);
 
-        const grouped: Record<number, ScheduleDTO[]> = {};
-        (data ?? []).forEach((s) => {
-          if (!grouped[s.courseId]) grouped[s.courseId] = [];
-          grouped[s.courseId].push(s);
-        });
+      // Obtener perfil del usuario
+      const profile = await getProfileService(token);
+      setUserProfile(profile);
 
-        const coursesGrouped: CourseGroup[] = Object.keys(grouped).map((id) => ({
-          courseId: Number(id),
-          schedules: grouped[Number(id)],
-        }));
+      // Obtener horarios del usuario
+      const schedules = await getUserSchedules(token, profile);
+      setUserSchedules(schedules);
 
-        setAllSchedules(coursesGrouped);
-        setFilteredCourses(coursesGrouped);
-      } catch (err) {
-        console.error('Error fetching schedules', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSchedules();
-  }, [token, authLoading]);
+      // Animación de entrada
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
 
-  // 🔹 Diccionario id → courseName
-  const courseNameById = useMemo(() => {
-    const map = new Map<number, string>();
-    allCourses.forEach((c) => {
-      if (c.courseName) map.set(c.courseId, c.courseName);
-    });
-    return map;
-  }, [allCourses]);
-
-  // 🔹 Filtro por nombre de curso
-  useEffect(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) {
-      setFilteredCourses(allSchedules);
-      setCurrentPage(0);
-      return;
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setLoading(false);
     }
-    const filtered = allSchedules.filter((c) => {
-      const name = courseNameById.get(c.courseId) ?? '';
-      return name.toLowerCase().includes(term);
-    });
-    setFilteredCourses(filtered);
-    setCurrentPage(0);
-  }, [search, allSchedules, courseNameById]);
+  };
 
-  const totalPages = Math.ceil(filteredCourses.length / pageSize);
-  const paginatedData = filteredCourses.slice(
-    currentPage * pageSize,
-    (currentPage + 1) * pageSize
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserData();
+    setRefreshing(false);
+  };
+
+  const renderScheduleItem = ({ item, index }: { item: ScheduleDTO; index: number }) => (
+    <Animated.View
+      style={[
+        styles.scheduleItem,
+        {
+          opacity: fadeAnim,
+          transform: [{
+            translateY: fadeAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [50 * (index + 1), 0],
+            }),
+          }],
+        },
+      ]}
+    >
+      <ScheduleItem schedule={item} />
+    </Animated.View>
   );
 
-  // 🔹 Obtener nombre real del curso desde la BD
-  const getCourseName = (courseId: number) => {
-    return courseNameById.get(courseId) ?? '';
-  };
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={styles.loadingText}>Cargando tus horarios...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Image source={require('../assets/logo.png')} style={styles.logo} />
-        <Text style={styles.title}>Gimnasio Americano ABC</Text>
-      </View>
+      <Text style={styles.headerTitle}>
+        {userProfile?.role === 'MAESTRO' ? 'Mis Horarios de Clase' : 'Mi Horario Académico'}
+      </Text>
 
-      <SearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar curso..."
+      <FlatList
+        data={userSchedules}
+        keyExtractor={(item) => `${item.id}-${item.day}-${item.startTime}`}
+        renderItem={renderScheduleItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No tienes horarios asignados</Text>
+            <Text style={styles.emptySubtitle}>
+              {userProfile?.role === 'MAESTRO'
+                ? 'Cuando se te asignen clases, aparecerán aquí.'
+                : 'Cuando se genere tu horario académico, aparecerá aquí.'
+              }
+            </Text>
+          </View>
+        }
+        contentContainerStyle={userSchedules.length === 0 ? styles.emptyList : undefined}
+        showsVerticalScrollIndicator={false}
       />
-
-      {loading ? (
-        <ActivityIndicator size="large" />
-      ) : (
-        <>
-          <FlatList
-            style={styles.listContainer}
-            data={paginatedData}
-            keyExtractor={(item) => item.courseId.toString()}
-            renderItem={({ item }) => (
-              <ScheduleCard course={item} getCourseName={getCourseName} />
-            )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                No hay cursos ni horarios para mostrar.
-              </Text>
-            }
-          />
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </>
-      )}
     </View>
   );
 }

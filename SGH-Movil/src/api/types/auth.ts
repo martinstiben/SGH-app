@@ -23,6 +23,8 @@ export interface RegisterRequest {
   email: string;
   password: string;
   role: string;
+  subjectId?: number;
+  courseId?: number;
 }
 
 export interface RegisterResponse {

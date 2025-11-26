@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import CustomAlert from './CustomAlert';
 import { PasswordInput } from './PasswordInput';
 import { getRolesService } from '../../api/services/authService';
+import { getAllSubjects, SubjectDTO } from '../../api/services/subjectService';
+import { getAllCourses, CourseDTO } from '../../api/services/courseService';
 import { Role, RegisterRequest } from '../../api/types/auth';
 import { RootStackParamList } from '../../navigation/AppNavigation';
 
@@ -39,7 +41,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [registerPassword, setRegisterPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<SubjectDTO[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<CourseDTO[]>([]);
 
 
   const togglePasswordVisibility = useCallback(() => {
@@ -58,6 +64,25 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     };
     loadRoles();
   }, []);
+
+  // Load subjects and courses when entering registration mode
+  useEffect(() => {
+    if (isRegistering) {
+      const loadData = async () => {
+        try {
+          const [subjectsData, coursesData] = await Promise.all([
+            getAllSubjects(),
+            getAllCourses(),
+          ]);
+          setAvailableSubjects(subjectsData);
+          setAvailableCourses(coursesData);
+        } catch (error) {
+          console.error('Error loading subjects/courses:', error);
+        }
+      };
+      loadData();
+    }
+  }, [isRegistering]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -105,6 +130,21 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       return;
     }
 
+    // Validar campos adicionales según el rol
+    if (selectedRole === 'MAESTRO' && !selectedSubject) {
+      setAlertTitle('Campo requerido');
+      setAlertMessage('Por favor selecciona una materia');
+      setAlertVisible(true);
+      return;
+    }
+
+    if (selectedRole === 'ESTUDIANTE' && !selectedCourse) {
+      setAlertTitle('Campo requerido');
+      setAlertMessage('Por favor selecciona un curso');
+      setAlertVisible(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const registerRequest: RegisterRequest = {
@@ -112,12 +152,14 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         email: registerEmail,
         password: registerPassword,
         role: selectedRole,
+        subjectId: selectedRole === 'MAESTRO' ? parseInt(selectedSubject) : undefined,
+        courseId: selectedRole === 'ESTUDIANTE' ? parseInt(selectedCourse) : undefined,
       };
 
       const result = await register(registerRequest);
 
-      setAlertTitle('¡Registro exitoso!');
-      setAlertMessage(result.message);
+      setAlertTitle('¡Solicitud enviada!');
+      setAlertMessage('Tu solicitud de registro ha sido enviada al coordinador para aprobación. Recibirás una notificación cuando sea revisada.');
       setAlertVisible(true);
 
       // Reset form and switch to login mode after success
@@ -129,6 +171,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setRegisterPassword('');
         setFullName('');
         setSelectedRole('');
+        setSelectedSubject('');
+        setSelectedCourse('');
       }, 2000);
     } catch (error: any) {
       setAlertTitle('Error de registro');
@@ -147,6 +191,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       setRegisterPassword('');
       setFullName('');
       setSelectedRole('');
+      setSelectedSubject('');
+      setSelectedCourse('');
     } else {
       setEmail('');
       setPassword('');
@@ -265,7 +311,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           <View style={styles.inputWrapper}>
             <Picker
               selectedValue={selectedRole}
-              onValueChange={(itemValue) => setSelectedRole(itemValue)}
+              onValueChange={(itemValue) => {
+                setSelectedRole(itemValue);
+                // Reset conditional fields when role changes
+                setSelectedSubject('');
+                setSelectedCourse('');
+              }}
               style={styles.picker}
             >
               <Picker.Item label="Selecciona un rol" value="" />
@@ -274,6 +325,38 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               ))}
             </Picker>
           </View>
+
+          {/* Selector de materia (solo para profesores) */}
+          {selectedRole === 'MAESTRO' && (
+            <View style={styles.inputWrapper}>
+              <Picker
+                selectedValue={selectedSubject}
+                onValueChange={(itemValue) => setSelectedSubject(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Selecciona una materia" value="" />
+                {availableSubjects.map((subject) => (
+                  <Picker.Item key={subject.subjectId} label={subject.subjectName} value={subject.subjectId.toString()} />
+                ))}
+              </Picker>
+            </View>
+          )}
+
+          {/* Selector de curso (solo para estudiantes) */}
+          {selectedRole === 'ESTUDIANTE' && (
+            <View style={styles.inputWrapper}>
+              <Picker
+                selectedValue={selectedCourse}
+                onValueChange={(itemValue) => setSelectedCourse(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Selecciona un curso" value="" />
+                {availableCourses.map((course) => (
+                  <Picker.Item key={course.courseId} label={course.courseName} value={course.courseId.toString()} />
+                ))}
+              </Picker>
+            </View>
+          )}
 
 
           {/* Botón registro */}
