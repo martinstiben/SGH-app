@@ -39,6 +39,29 @@ export async function getSchedulesByCourse(token: string, courseId: number): Pro
   return data as ScheduleDTO[];
 }
 
+// Función para obtener todos los horarios (para coordinadores)
+export async function getAllSchedules(token: string, page: number = 0, size: number = 50): Promise<{ content: ScheduleDTO[]; totalElements: number; totalPages: number }> {
+  try {
+    const response = await fetch(`${API_URL}/schedules-crud/all?page=${page}&size=${size}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching all schedules:', error);
+    return { content: [], totalElements: 0, totalPages: 0 };
+  }
+}
+
 // Función para obtener horarios del usuario actual basado en su rol
 export async function getUserSchedules(token: string, userProfile: { role: string; userId: number }): Promise<ScheduleDTO[]> {
   try {
@@ -50,6 +73,10 @@ export async function getUserSchedules(token: string, userProfile: { role: strin
       // TODO: Obtener courseId del perfil del estudiante
       console.warn("⚠️ Student schedules not implemented yet - need courseId from profile");
       return [];
+    } else if (userProfile.role === 'COORDINADOR') {
+      // Para coordinadores, obtener todos los horarios con paginación
+      const result = await getAllSchedules(token, 0, 100); // Primeros 100 horarios
+      return result.content;
     } else {
       return [];
     }

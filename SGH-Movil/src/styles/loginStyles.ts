@@ -2,190 +2,405 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
+// Breakpoints para responsive design
+const isSmallDevice = width < 375;
+const isMediumDevice = width >= 375 && width < 768;
+const isLargeDevice = width >= 768;
+
 export const styles = StyleSheet.create({
-  backgroundImage: {
+  // Contenedor principal con fondo claro como la landing
+  mainContainer: {
     flex: 1,
+    backgroundColor: '#f9fafb',
   },
-  darkOverlay: {
+  
+  // Fondo con gradiente visual
+  backgroundGradient: {
+    flex: 1,
+    backgroundColor: '#eff6ff',
+  },
+  
+  // Elementos decorativos de fondo
+  backgroundDecoration: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    zIndex: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
   },
-  container: {
-    flexGrow: 1,
-    zIndex: 1,
-  },
-  header: {
+  circle: {
     position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 2,
+    borderRadius: 999,
+    opacity: 0.08,
+    pointerEvents: 'none',
+  },
+  circle1: {
+    width: width * 0.9,
+    height: width * 0.9,
+    backgroundColor: '#3b82f6',
+    top: -width * 0.3,
+    right: -width * 0.3,
+  },
+  circle2: {
+    width: width * 0.7,
+    height: width * 0.7,
+    backgroundColor: '#1e40af',
+    bottom: -width * 0.2,
+    left: -width * 0.2,
+  },
+  circle3: {
+    width: width * 0.5,
+    height: width * 0.5,
+    backgroundColor: '#dbeafe',
+    top: height * 0.4,
+    right: -width * 0.1,
+  },
+
+  // Header con botón de regreso
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#3b82f6',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 12,
   },
   backIcon: {
-    width: 28,
-    height: 28,
-    tintColor: '#fff',
+    width: 24,
+    height: 24,
+    tintColor: '#ffffff',
   },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+  },
+
+  // Contenedor del scroll
+  container: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
+  keyboardAvoidingContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
+    paddingBottom: 20,
+  },
+
+  // Contenido principal centrado
   mainContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingVertical: 50,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
+
+  // Logo container con estilo elegante
   logoContainer: {
-    marginBottom: 30,
+    marginBottom: 32,
+    alignItems: 'center',
   },
   logoCircle: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
     elevation: 8,
+    borderWidth: 3,
+    borderColor: '#dbeafe',
   },
   logo: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
+    resizeMode: 'contain',
   },
+
+  // Título de la sección
   titleContainer: {
-    marginBottom: 40,
+    marginBottom: 32,
+    alignItems: 'center',
   },
   loginTitle: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: '600',
-    color: '#fff',
+    color: '#1e40af',
     textAlign: 'center',
+    letterSpacing: -0.3,
+    marginBottom: 8,
   },
+  loginSubtitle: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+
+  // Contenedor del formulario
   formContainer: {
     width: '100%',
-    maxWidth: 320,
-    gap: 15,
-    // Evita que el teclado empuje el formulario bruscamente
-    justifyContent: 'center',
-    paddingHorizontal: 10,
+    maxWidth: isSmallDevice ? 320 : isMediumDevice ? 360 : 400,
+    paddingHorizontal: isSmallDevice ? 4 : 8,
   },
+
+  // Card del formulario con estilo elegante
+  formCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 28,
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+
+  // Wrapper de inputs mejorado
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: 52,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    backgroundColor: '#f8fafc',
+    borderRadius: isSmallDevice ? 12 : 14,
+    paddingHorizontal: isSmallDevice ? 14 : 16,
+    height: isSmallDevice ? 52 : 56,
+    marginBottom: isSmallDevice ? 12 : 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    pointerEvents: 'auto',
+  },
+  inputWrapperFocused: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#ffffff',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 2,
+    shadowRadius: 8,
+    elevation: 2,
   },
   inputIcon: {
-    width: 25,
-    height: 35,
-    marginRight: 12,
-    tintColor: '#666',
+    width: 22,
+    height: 22,
+    marginRight: 14,
+    tintColor: '#94a3b8',
     resizeMode: 'contain',
   },
-  eyeIcon: {
-    width: 28,
-    height: 28,
-    marginLeft: 12,
-    tintColor: '#666',
-    resizeMode: 'contain',
+  inputIconFocused: {
+    tintColor: '#3b82f6',
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: '#1e293b',
     paddingVertical: 0,
-    textAlignVertical: 'center', // Centra el texto verticalmente y evita saltos
+    fontWeight: '400',
+    pointerEvents: 'auto',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    minHeight: 24,
   },
-  loginButton: {
-    backgroundColor: '#2E3A59',
-    paddingVertical: 16,
-    borderRadius: 12,
+  eyeButton: {
+    padding: 12,
+    marginLeft: 8,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 15,
-    shadowColor: '#000',
+    minWidth: 44,
+    minHeight: 44,
+  },
+  eyeIcon: {
+    width: 24,
+    height: 24,
+    tintColor: '#94a3b8',
+    resizeMode: 'contain',
+  },
+
+  // Label de input
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#475569',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+
+  // Botón principal de login
+  loginButton: {
+    backgroundColor: '#3b82f6',
+    paddingVertical: isSmallDevice ? 14 : 16,
+    borderRadius: isSmallDevice ? 12 : 14,
+    alignItems: 'center',
+    marginTop: isSmallDevice ? 6 : 8,
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 4,
   },
   loginButtonDisabled: {
-    backgroundColor: '#7A8BA3',
-    opacity: 0.7,
+    backgroundColor: '#93c5fd',
+    shadowOpacity: 0.1,
   },
   loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#ffffff',
+    fontSize: 17,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
+
+  // Botón secundario (olvidé contraseña, registro)
   switchButton: {
     marginTop: 20,
     paddingVertical: 12,
     alignItems: 'center',
   },
   switchButtonText: {
-    color: '#fff',
+    color: '#3b82f6',
     fontSize: 15,
     fontWeight: '500',
+  },
+
+  // Enlace de texto
+  linkText: {
+    color: '#1e40af',
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  picker: {
+
+  // Botón de enlace
+  linkButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  linkButtonText: {
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+
+  // Separador
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
     flex: 1,
-    color: '#333',
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Picker mejorado
+  pickerWrapper: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+    pointerEvents: 'auto',
+  },
+  picker: {
+    height: 56,
+    color: '#1e293b',
+  },
+  pickerItem: {
     fontSize: 16,
   },
+
+  // Estilos para verificación de código
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1e40af',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -0.2,
   },
   subtitle: {
     fontSize: 15,
-    color: '#fff',
+    color: '#64748b',
     textAlign: 'center',
-    marginBottom: 25,
-    opacity: 1.0,
+    marginBottom: 24,
     lineHeight: 22,
   },
   emailText: {
-    fontSize: 14,
-    color: '#fff',
+    fontSize: 15,
+    color: '#3b82f6',
     textAlign: 'center',
-    marginBottom: 15,
-    opacity: 1.0,
-    fontStyle: 'italic',
+    marginBottom: 20,
+    fontWeight: '600',
   },
   verificationLogo: {
     width: 80,
     height: 80,
-    marginBottom: 10,
+    marginBottom: 16,
+    tintColor: '#3b82f6',
   },
   verificationInput: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '600',
-    letterSpacing: 4,
-    color: '#2E3A59',
+    letterSpacing: 8,
+    color: '#1e40af',
     textAlign: 'center',
+    fontFamily: 'monospace',
   },
   instructionText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
     marginBottom: 20,
-    fontWeight: '500',
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+
+  // Footer informativo
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Estilos legacy para compatibilidad
+  backgroundImage: {
+    flex: 1,
+  },
+  darkOverlay: {
+    display: 'none',
   },
 });

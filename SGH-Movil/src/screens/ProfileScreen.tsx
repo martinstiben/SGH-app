@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, ScrollView, Dimensions } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { getProfileService, uploadProfileImageService } from '../api/services/authService';
 import { UserProfile } from '../api/types/auth';
 import { styles } from '../styles/profileStyles';
 import CustomAlert from '../components/Genericos/CustomAlert';
+import { RootStackParamList } from '../navigation/AppNavigation';
+
+const { width } = Dimensions.get('window');
+
+type ProfileNavProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
 export default function ProfileScreen() {
   const { token, logout } = useAuth();
+  const navigation = useNavigation<ProfileNavProp>();
+  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -110,6 +121,21 @@ export default function ProfileScreen() {
     setAlertVisible(false);
     try {
       await logout();
+      // El logout fue exitoso - mostrar mensaje y redirigir
+      setAlertTitle('Sesión cerrada');
+      setAlertMessage('Has cerrado sesión exitosamente.');
+      setAlertType('success');
+      setAlertVisible(true);
+
+      // Redirigir a la landing page después del logout
+      setTimeout(() => {
+        setAlertVisible(false);
+        // Reset navigation stack and go to landing page
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Landing' }],
+        });
+      }, 1500);
     } catch (error) {
       console.error('Error during logout:', error);
       setAlertTitle('Error');
@@ -139,60 +165,111 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Perfil</Text>
-
-      <View style={styles.profileCard}>
-        {/* Foto de perfil */}
-        <View style={styles.photoContainer}>
-          <Image
-            source={
-              profile.photoUrl
-                ? { uri: profile.photoUrl }
-                : require('../assets/images/user.png')
-            }
-            style={styles.profilePhoto}
-          />
-          <TouchableOpacity
-            style={[styles.editPhotoButton, uploadingImage && styles.editPhotoButtonDisabled]}
-            onPress={handleEditPhoto}
-            disabled={uploadingImage}
-          >
-            {uploadingImage ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.editPhotoText}>Editar</Text>
-            )}
-          </TouchableOpacity>
+    <SafeAreaView style={[styles.safeContainer, { paddingTop: insets.top }]}>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header elegante */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Ionicons name="person-circle-outline" size={32} color="#3b82f6" />
+            <Text style={styles.headerTitle}>Mi Perfil</Text>
+          </View>
+          <Text style={styles.headerSubtitle}>Gestiona tu información personal</Text>
         </View>
 
-        {/* Información del usuario */}
-        <View style={styles.infoContainer}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Nombre:</Text>
-            <Text style={styles.infoValue}>{profile.name}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email:</Text>
-            <Text style={styles.infoValue}>{profile.email}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Rol:</Text>
-            <Text style={styles.infoValue}>
-              {profile.role === 'MAESTRO' ? 'Profesor' :
-               profile.role === 'ESTUDIANTE' ? 'Estudiante' :
-               profile.role}
+        {/* Tarjeta principal del perfil */}
+        <View style={styles.profileCard}>
+          {/* Sección de foto de perfil */}
+          <View style={styles.photoSection}>
+            <View style={styles.photoContainer}>
+              <Image
+                source={
+                  profile.photoUrl
+                    ? { uri: profile.photoUrl }
+                    : require('../assets/images/user.png')
+                }
+                style={styles.profilePhoto}
+              />
+              <View style={styles.photoOverlay}>
+                <TouchableOpacity
+                  style={[styles.editPhotoButton, uploadingImage && styles.editPhotoButtonDisabled]}
+                  onPress={handleEditPhoto}
+                  disabled={uploadingImage}
+                  activeOpacity={0.8}
+                >
+                  {uploadingImage ? (
+                    <ActivityIndicator size="small" color="#3b82f6" />
+                  ) : (
+                    <Ionicons name="camera" size={20} color="#3b82f6" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={styles.photoLabel}>
+              {uploadingImage ? 'Subiendo...' : 'Toca para cambiar'}
             </Text>
           </View>
-        </View>
-      </View>
 
-      {/* Botón de cerrar sesión */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
+          {/* Información del usuario */}
+          <View style={styles.infoSection}>
+            <Text style={styles.sectionTitle}>Información Personal</Text>
+
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="person-outline" size={20} color="#3b82f6" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Nombre completo</Text>
+                  <Text style={styles.infoValue}>{profile.name}</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoDivider} />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="mail-outline" size={20} color="#3b82f6" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Correo electrónico</Text>
+                  <Text style={styles.infoValue}>{profile.email}</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoDivider} />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="school-outline" size={20} color="#3b82f6" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Tipo de usuario</Text>
+                  <Text style={styles.infoValue}>
+                    {profile.role === 'MAESTRO' ? 'Profesor' :
+                     profile.role === 'ESTUDIANTE' ? 'Estudiante' :
+                     profile.role}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Espacio para el botón de logout */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Botón de cerrar sesión - fixed al bottom */}
+      <View style={[styles.logoutContainer, { paddingBottom: insets.bottom + 20 }]}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
+          <Ionicons name="log-out-outline" size={20} color="#6b7280" />
+          <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Alerta personalizada */}
       <CustomAlert
@@ -207,6 +284,6 @@ export default function ProfileScreen() {
         autoClose={alertType === 'success'}
         autoCloseDelay={2000}
       />
-    </View>
+    </SafeAreaView>
   );
 }

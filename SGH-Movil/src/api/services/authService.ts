@@ -13,7 +13,22 @@ export async function loginService(credentials: LoginRequest): Promise<{ require
   const data = await response.json() as { message: string } | { error: string };
 
   if (!response.ok) {
-    throw new Error((data as any).error || 'Login failed');
+    // Manejar diferentes tipos de errores del backend
+    const errorMessage = (data as any).error || 'Error de autenticación';
+
+    // Si el error indica que la cuenta no existe o no está activada
+    if (errorMessage.includes('no existe') ||
+        errorMessage.includes('no encontrada') ||
+        errorMessage.includes('no activada') ||
+        errorMessage.includes('pendiente') ||
+        errorMessage.includes('aprobación') ||
+        errorMessage.includes('inactiva') ||
+        errorMessage.includes('rechazada') ||
+        errorMessage.includes('denegada')) {
+      throw new Error(errorMessage);
+    }
+
+    throw new Error('Credenciales incorrectas. Verifica tu email y contraseña.');
   }
 
   // Backend returns { message: "Código de verificación enviado al correo electrónico" }

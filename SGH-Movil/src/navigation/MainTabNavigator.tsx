@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, TouchableOpacity, Animated, StatusBar } from 'react-native';
+import { View, Text, StatusBar, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { getUnreadNotifications } from '../api/services/notificationService';
 
@@ -23,19 +23,30 @@ export type MainTabParamList = {
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-  const scaleAnim = new Animated.Value(1);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    // Configurar status bar azul para las tabs principales
-    StatusBar.setBarStyle('light-content');
-    StatusBar.setBackgroundColor('#3b82f6');
+    // Configurar status bar con colores oscuros para fondo blanco
+    StatusBar.setBarStyle('dark-content');
+    StatusBar.setBackgroundColor('#ffffff');
     StatusBar.setTranslucent(false);
   }, []);
 
   useEffect(() => {
     loadUnreadCount();
+  }, [token]);
+
+  // Optimizar carga de notificaciones - reducir frecuencia para mejor rendimiento
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (token) {
+        loadUnreadCount();
+      }
+    }, 60000); // Cada 60 segundos para mejor rendimiento
+
+    return () => clearInterval(interval);
   }, [token]);
 
   const loadUnreadCount = async () => {
@@ -50,11 +61,29 @@ export default function MainTabNavigator() {
     }
   };
 
+  // Mostrar loading mientras se verifica autenticación
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
+  // Si no hay token, no debería llegar aquí, pero por seguridad
+  if (!token) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <Text style={{ fontSize: 16, color: '#64748b' }}>Sesión expirada</Text>
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, paddingBottom: 80 }} edges={['bottom']}>
+    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
+          tabBarIcon: ({ focused }) => {
             let iconName: keyof typeof Ionicons.glyphMap;
 
             if (route.name === 'Schedules') {
@@ -67,40 +96,28 @@ export default function MainTabNavigator() {
               iconName = 'help-circle-outline';
             }
 
-            // Animación suave al cambiar de tab
-            Animated.spring(scaleAnim, {
-              toValue: focused ? 1.1 : 1,
-              useNativeDriver: true,
-              tension: 300,
-              friction: 3,
-            }).start();
-
             return (
-              <Animated.View style={[
-                styles.tabItem,
-                focused ? styles.activeTabItem : styles.inactiveTabItem,
-                { transform: [{ scale: scaleAnim }] }
-              ]}>
-                <Ionicons
-                  name={iconName}
-                  size={focused ? 26 : 22}
-                  color={focused ? '#2563eb' : '#9ca3af'}
-                />
-              </Animated.View>
+              <Ionicons
+                name={iconName}
+                size={focused ? 24 : 20}
+                color={focused ? '#3b82f6' : '#6b7280'}
+              />
             );
           },
-          tabBarActiveTintColor: '#2563eb',
-          tabBarInactiveTintColor: '#9ca3af',
-          tabBarStyle: styles.tabBar,
-          tabBarLabelStyle: styles.tabBarLabel,
-          tabBarLabel: ({ focused, children }) => (
-            <Text style={[
-              styles.tabBarLabel,
-              focused ? styles.activeLabel : styles.inactiveLabel
-            ]}>
-              {children}
-            </Text>
-          ),
+          tabBarActiveTintColor: '#3b82f6',
+          tabBarInactiveTintColor: '#6b7280',
+          tabBarStyle: {
+            backgroundColor: '#ffffff',
+            borderTopWidth: 1,
+            borderTopColor: '#e5e7eb',
+            height: 65 + insets.bottom,
+            paddingBottom: insets.bottom,
+            paddingTop: 8,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '500',
+          },
           headerShown: false,
         })}
       >
@@ -117,6 +134,17 @@ export default function MainTabNavigator() {
           options={{
             tabBarLabel: 'Notificaciones',
             tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+            tabBarBadgeStyle: unreadCount > 0 ? {
+              backgroundColor: '#ef4444',
+              color: '#ffffff',
+              fontSize: 10,
+              fontWeight: '700',
+              minWidth: 18,
+              height: 18,
+              borderRadius: 9,
+              borderWidth: 2,
+              borderColor: '#ffffff',
+            } : undefined,
           }}
         />
         <Tab.Screen
@@ -127,6 +155,6 @@ export default function MainTabNavigator() {
           }}
         />
       </Tab.Navigator>
-    </SafeAreaView>
+    </View>
   );
 }

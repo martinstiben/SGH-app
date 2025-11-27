@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, Text, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, FlatList, Text, ActivityIndicator, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { getActiveNotifications, markNotificationAsRead } from '../api/services/notificationService';
 import { InAppNotification } from '../api/types/notifications';
@@ -10,6 +10,10 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Estadísticas de notificaciones
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const totalCount = notifications.length;
 
   // Cargar notificaciones del usuario
   useEffect(() => {
@@ -63,21 +67,44 @@ export default function NotificationsScreen() {
     <TouchableOpacity
       style={[styles.notificationCard, !item.isRead && styles.unreadCard]}
       onPress={() => markAsRead(item.notificationId)}
+      activeOpacity={0.7}
     >
+      {!item.isRead && <View style={styles.unreadIndicator} />}
+
       <View style={styles.notificationHeader}>
-        <Text style={styles.notificationTitle}>{item.title}</Text>
-        <Text style={styles.notificationTime}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.notificationTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.notificationTime}>
+            {new Date(item.createdAt).toLocaleDateString('es-ES', {
+              day: '2-digit',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.notificationMessage}>{item.message}</Text>
+
+      <Text style={styles.notificationMessage} numberOfLines={3}>
+        {item.message}
+      </Text>
+
       <View style={styles.notificationFooter}>
-        <Text style={[styles.notificationType, getTypeStyle(item.notificationType)]}>
-          {item.notificationType}
-        </Text>
-        <Text style={[styles.notificationPriority, getPriorityStyle(item.priority)]}>
-          {item.priority}
-        </Text>
+        <View style={styles.tagsContainer}>
+          <Text style={[styles.notificationType, getTypeStyle(item.notificationType)]}>
+            {getTypeLabel(item.notificationType)}
+          </Text>
+          <Text style={[styles.notificationPriority, getPriorityStyle(item.priority)]}>
+            {getPriorityLabel(item.priority)}
+          </Text>
+        </View>
+        {!item.isRead && (
+          <Text style={{ fontSize: 12, color: '#3b82f6', fontWeight: '600' }}>
+            Nuevo
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -86,7 +113,17 @@ export default function NotificationsScreen() {
     switch (type) {
       case 'SCHEDULE': return styles.typeSchedule;
       case 'REMINDER': return styles.typeReminder;
+      case 'GENERAL_SYSTEM_NOTIFICATION': return styles.typeSystem;
       default: return styles.typeDefault;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'SCHEDULE': return 'HORARIO';
+      case 'REMINDER': return 'RECORDATORIO';
+      case 'GENERAL_SYSTEM_NOTIFICATION': return 'SISTEMA';
+      default: return type;
     }
   };
 
@@ -96,6 +133,15 @@ export default function NotificationsScreen() {
       case 'MEDIUM': return styles.priorityMedium;
       case 'LOW': return styles.priorityLow;
       default: return styles.priorityDefault;
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'HIGH': return 'ALTA';
+      case 'MEDIUM': return 'MEDIA';
+      case 'LOW': return 'BAJA';
+      default: return priority;
     }
   };
 
@@ -109,22 +155,65 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Notificaciones</Text>
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Notificaciones</Text>
+        <Text style={styles.headerSubtitle}>
+          Mantente al día con tus actividades académicas
+        </Text>
+      </View>
 
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.notificationId.toString()}
-        renderItem={renderNotification}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No tienes notificaciones</Text>
+      {/* Estadísticas */}
+      {totalCount > 0 && (
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{totalCount}</Text>
+            <Text style={styles.statLabel}>Total</Text>
           </View>
-        }
-        contentContainerStyle={notifications.length === 0 ? styles.emptyList : undefined}
-      />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{unreadCount}</Text>
+            <Text style={styles.statLabel}>Sin leer</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{totalCount - unreadCount}</Text>
+            <Text style={styles.statLabel}>Leídas</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Lista de notificaciones */}
+      <View style={styles.content}>
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.notificationId.toString()}
+          renderItem={renderNotification}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#3b82f6']}
+              tintColor="#3b82f6"
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Image
+                source={require('../assets/images/logo.png')}
+                style={styles.emptyIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.emptyTitle}>¡Todo al día!</Text>
+              <Text style={styles.emptyText}>
+                No tienes notificaciones pendientes.{'\n'}
+                Cuando tengas nuevas actividades,{'\n'}
+                aparecerán aquí.
+              </Text>
+            </View>
+          }
+          contentContainerStyle={notifications.length === 0 ? styles.emptyList : undefined}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </View>
   );
 }

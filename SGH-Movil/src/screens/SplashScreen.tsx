@@ -3,6 +3,7 @@ import { View, Image, Text, Animated, StyleSheet, Dimensions, Easing } from 'rea
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import { useAuth } from '../context/AuthContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
@@ -10,6 +11,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function SplashScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { token, validateSession } = useAuth();
 
   // Animaciones múltiples
   const logoScale = useRef(new Animated.Value(0)).current;
@@ -114,13 +116,30 @@ export default function SplashScreen() {
     ]);
 
     // Iniciar animaciones
-    animationSequence.start(() => {
-      // Después de 2.2 segundos totales (ultra rápido y profesional), navegar a Landing
-      setTimeout(() => {
-        navigation.replace('Landing');
+    animationSequence.start(async () => {
+      // Después de las animaciones, decidir dónde navegar basado en el estado de autenticación
+      setTimeout(async () => {
+        try {
+          // Si hay token, validar si es válido
+          if (token) {
+            const isValidSession = await validateSession();
+            if (isValidSession) {
+              // Token válido, ir directamente a MainTabs
+              navigation.replace('MainTabs');
+              return;
+            }
+          }
+
+          // No hay token válido, ir al flujo normal: Landing -> Login
+          navigation.replace('Landing');
+        } catch (error) {
+          console.error('Error durante validación de sesión en Splash:', error);
+          // En caso de error, ir al flujo normal
+          navigation.replace('Landing');
+        }
       }, 2200);
     });
-  }, [navigation]);
+  }, [navigation, token, validateSession]);
 
   const logoRotation = logoRotate.interpolate({
     inputRange: [0, 1],
