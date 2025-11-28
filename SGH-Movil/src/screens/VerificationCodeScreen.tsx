@@ -21,7 +21,7 @@ import { styles } from '../styles/loginStyles';
 import { RootStackParamList } from '../navigation/AppNavigation';
 
 // Preload images to ensure they appear immediately
-const lockIcon = require('../assets/images/lock.png');
+const lockIcon = require('../assets/images/contrasena.png');
 
 const { width, height } = Dimensions.get('window');
 
