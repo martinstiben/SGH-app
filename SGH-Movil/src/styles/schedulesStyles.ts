@@ -1,7 +1,9 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const isSmallDevice = width < 375;
+const isTablet = width >= 768;
+const isLargeScreen = width >= 1024;
 
 export const styles = StyleSheet.create({
   // Contenedor principal
@@ -102,10 +104,11 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
   gridItem: {
-    flex: 1,
-    maxWidth: '48%',
-    margin: '1%',
-    marginBottom: 16,
+    flex: isLargeScreen ? 0.32 : isTablet ? 0.48 : 0.49,
+    marginHorizontal: isLargeScreen ? 6 : isTablet ? 4 : 2,
+    marginVertical: 6,
+    minWidth: isLargeScreen ? 180 : isTablet ? 160 : 140,
+    maxWidth: isLargeScreen ? '32%' : isTablet ? '48%' : '49%',
   },
 
   // Estados vacíos

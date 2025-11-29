@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const isSmallDevice = width < 375;
@@ -169,5 +169,12 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
     shadowOpacity: 0.05,
     elevation: 2,
+  },
+
+  // Filas de información con iconos
+  infoRowWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
   },
 });

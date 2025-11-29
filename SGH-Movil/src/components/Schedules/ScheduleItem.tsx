@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { ScheduleDTO } from '../../api/types/schedules';
 import { styles } from '../../styles/scheduleItemStyles';
 
@@ -11,17 +11,26 @@ interface Props {
 }
 
 export default function ScheduleItem({ schedule, isCoordinatorView = false, onPress }: Props) {
-  const getDayColor = (day: string) => {
-    const colors = {
-      'LUNES': '#3b82f6',
-      'MARTES': '#10b981',
-      'MIÉRCOLES': '#f59e0b',
-      'JUEVES': '#ef4444',
-      'VIERNES': '#8b5cf6',
-      'SÁBADO': '#06b6d4',
-      'DOMINGO': '#ec4899',
+  const getDayInfo = (day: string) => {
+    const dayData = {
+      'LUNES': { color: '#3b82f6', short: 'Lun', full: 'Lunes' },
+      'MARTES': { color: '#10b981', short: 'Mar', full: 'Martes' },
+      'MIÉRCOLES': { color: '#f59e0b', short: 'Mié', full: 'Miércoles' },
+      'JUEVES': { color: '#ef4444', short: 'Jue', full: 'Jueves' },
+      'VIERNES': { color: '#8b5cf6', short: 'Vie', full: 'Viernes' },
+      'SÁBADO': { color: '#06b6d4', short: 'Sáb', full: 'Sábado' },
+      'DOMINGO': { color: '#ec4899', short: 'Dom', full: 'Domingo' },
     };
-    return colors[day as keyof typeof colors] || '#6b7280';
+    return dayData[day as keyof typeof dayData] || { color: '#6b7280', short: day, full: day };
+  };
+
+  const formatTime = (time: string) => {
+    // Asegurar formato HH:mm consistente
+    if (time.includes(':')) {
+      return time;
+    }
+    // Si solo tiene HH, agregar :00
+    return `${time}:00`;
   };
 
   if (isCoordinatorView) {
@@ -32,7 +41,7 @@ export default function ScheduleItem({ schedule, isCoordinatorView = false, onPr
           styles.card,
           styles.cardGlow,
           {
-            borderLeftColor: getDayColor(schedule.day),
+            borderLeftColor: getDayInfo(schedule.day).color,
             borderLeftWidth: 4,
           },
         ]}
@@ -41,15 +50,15 @@ export default function ScheduleItem({ schedule, isCoordinatorView = false, onPr
       >
         {/* Header con día y hora */}
         <View style={styles.header}>
-          <View style={[styles.dayBadge, { backgroundColor: getDayColor(schedule.day) }]}>
+          <View style={[styles.dayBadge, { backgroundColor: getDayInfo(schedule.day).color }]}>
             <Text style={styles.dayBadgeText}>
-              {schedule.day}
+              {getDayInfo(schedule.day).short}
             </Text>
           </View>
           <View style={styles.timeContainer}>
             <Ionicons name="time-outline" size={16} color="#64748b" />
             <Text style={styles.time}>
-              {schedule.startTime} - {schedule.endTime}
+              {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
             </Text>
           </View>
         </View>
@@ -60,15 +69,21 @@ export default function ScheduleItem({ schedule, isCoordinatorView = false, onPr
             {schedule.subjectName}
           </Text>
 
-          <Text style={styles.teacherName}>
-            👨‍🏫 {schedule.teacherName}
-          </Text>
-
-          {schedule.courseName && (
-            <Text style={styles.courseName}>
-              🏫 {schedule.courseName}
+          <View style={styles.infoRowWithIcon}>
+            <Ionicons name="person-outline" size={16} color="#64748b" />
+            <Text style={styles.teacherName}>
+              {schedule.teacherName}
             </Text>
-          )}
+          </View>
+  
+            {schedule.courseName && (
+              <View style={styles.infoRowWithIcon}>
+                <Ionicons name="school-outline" size={16} color="#64748b" />
+                <Text style={styles.courseName}>
+                  {schedule.courseName}
+                </Text>
+              </View>
+            )}
         </View>
 
         {/* Información adicional para coordinadores */}
@@ -82,7 +97,7 @@ export default function ScheduleItem({ schedule, isCoordinatorView = false, onPr
         {/* Footer con estado */}
         <View style={styles.footer}>
           <View style={styles.statusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: getDayColor(schedule.day) }]} />
+            <View style={[styles.statusDot, { backgroundColor: getDayInfo(schedule.day).color }]} />
             <Text style={styles.statusText}>Activo</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
@@ -98,7 +113,7 @@ export default function ScheduleItem({ schedule, isCoordinatorView = false, onPr
         styles.card,
         styles.cardGlow,
         {
-          borderLeftColor: getDayColor(schedule.day),
+          borderLeftColor: getDayInfo(schedule.day).color,
           borderLeftWidth: 4,
         },
       ]}
@@ -107,15 +122,15 @@ export default function ScheduleItem({ schedule, isCoordinatorView = false, onPr
     >
       {/* Header con día y hora */}
       <View style={styles.header}>
-        <View style={[styles.dayBadge, { backgroundColor: getDayColor(schedule.day) }]}>
+        <View style={[styles.dayBadge, { backgroundColor: getDayInfo(schedule.day).color }]}>
           <Text style={styles.dayBadgeText}>
-            {schedule.day}
+            {getDayInfo(schedule.day).short}
           </Text>
         </View>
         <View style={styles.timeContainer}>
           <Ionicons name="time-outline" size={16} color="#64748b" />
           <Text style={styles.time}>
-            {schedule.startTime} - {schedule.endTime}
+            {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
           </Text>
         </View>
       </View>
@@ -126,21 +141,27 @@ export default function ScheduleItem({ schedule, isCoordinatorView = false, onPr
           {schedule.subjectName}
         </Text>
 
-        <Text style={styles.teacherName}>
-          👨‍🏫 {schedule.teacherName}
-        </Text>
+        <View style={styles.infoRowWithIcon}>
+          <Ionicons name="person-outline" size={16} color="#64748b" />
+          <Text style={styles.teacherName}>
+            {schedule.teacherName}
+          </Text>
+        </View>
 
         {schedule.courseName && (
-          <Text style={styles.courseName}>
-            🏫 {schedule.courseName}
-          </Text>
+          <View style={styles.infoRowWithIcon}>
+            <Ionicons name="school-outline" size={16} color="#64748b" />
+            <Text style={styles.courseName}>
+              {schedule.courseName}
+            </Text>
+          </View>
         )}
       </View>
 
       {/* Footer con estado */}
       <View style={styles.footer}>
         <View style={styles.statusContainer}>
-          <View style={[styles.statusDot, { backgroundColor: getDayColor(schedule.day) }]} />
+          <View style={[styles.statusDot, { backgroundColor: getDayInfo(schedule.day).color }]} />
           <Text style={styles.statusText}>Activo</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />

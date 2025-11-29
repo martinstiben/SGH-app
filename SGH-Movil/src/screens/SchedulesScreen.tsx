@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, ActivityIndicator, Text, Animated, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { getUserSchedules, getAllSchedules } from '../api/services/scheduleService';
+import { ActivityIndicator, Animated, Dimensions, FlatList, RefreshControl, Text, View } from 'react-native';
 import { getProfileService } from '../api/services/authService';
+import { getAllSchedules, getUserSchedules } from '../api/services/scheduleService';
 import { UserProfile } from '../api/types/auth';
 import { ScheduleDTO } from '../api/types/schedules';
 import ScheduleItem from '../components/Schedules/ScheduleItem';
+import { useAuth } from '../context/AuthContext';
 import { styles } from '../styles/schedulesStyles';
+
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
+const isLargeScreen = width >= 1024;
 
 export default function SchedulesScreen() {
   const { token, loading: authLoading } = useAuth();
@@ -55,12 +59,14 @@ export default function SchedulesScreen() {
       let totalElements = 0;
 
       if (currentProfile.role === 'COORDINADOR') {
-        // Para coordinadores, obtener todos los horarios con paginación
-        const result = await getAllSchedules(token, page, 20);
+        // Para coordinadores, obtener todos los horarios con paginación optimizada
+        // Usar menos elementos por página en dispositivos móviles para mejor rendimiento
+        const pageSize = isLargeScreen ? 30 : isTablet ? 24 : 15;
+        const result = await getAllSchedules(token, page, pageSize);
         if (result && result.content) {
           schedules = append ? [...userSchedules, ...result.content] : result.content;
           totalElements = result.totalElements || 0;
-          setHasMoreData(result.content.length === 20 && schedules.length < totalElements);
+          setHasMoreData(result.content.length === pageSize && schedules.length < totalElements);
         } else {
           schedules = append ? userSchedules : [];
           totalElements = 0;
@@ -118,8 +124,16 @@ export default function SchedulesScreen() {
     console.log('Schedule pressed:', schedule);
   };
 
+  const getNumColumns = () => {
+    if (userProfile?.role !== 'COORDINADOR') return 1;
+    if (isLargeScreen) return 3;
+    if (isTablet) return 2;
+    return 2; // Móviles también usan 2 columnas para mejor uso del espacio
+  };
+
   const renderScheduleItem = ({ item, index }: { item: ScheduleDTO; index: number }) => {
     const isCoordinatorView = userProfile?.role === 'COORDINADOR';
+    const numColumns = getNumColumns();
 
     return (
       <Animated.View
@@ -130,7 +144,7 @@ export default function SchedulesScreen() {
             transform: [{
               translateY: fadeAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [50 * (index + 1), 0],
+                outputRange: [30 * (Math.floor(index / numColumns) + 1), 0],
               }),
             }],
           },
@@ -244,8 +258,11 @@ export default function SchedulesScreen() {
           }
           contentContainerStyle={userSchedules.length === 0 ? styles.emptyList : undefined}
           showsVerticalScrollIndicator={false}
-          numColumns={userProfile?.role === 'COORDINADOR' ? 2 : 1}
-          columnWrapperStyle={userProfile?.role === 'COORDINADOR' ? { justifyContent: 'space-between' } : undefined}
+          numColumns={getNumColumns()}
+          columnWrapperStyle={userProfile?.role === 'COORDINADOR' ? {
+            justifyContent: 'flex-start',
+            paddingHorizontal: 8
+          } : undefined}
         />
       </View>
     </View>
