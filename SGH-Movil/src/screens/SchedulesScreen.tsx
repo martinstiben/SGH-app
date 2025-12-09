@@ -1,17 +1,13 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, FlatList, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { getProfileService } from '../api/services/authService';
-import { getAllSchedules, getUserSchedules } from '../api/services/scheduleService';
+import { getUserSchedules } from '../api/services/scheduleService';
 import { UserProfile } from '../api/types/auth';
-import { DAYS_ORDER, DAY_TRANSLATIONS } from '../api/types/days';
 import { ScheduleDTO } from '../api/types/schedules';
-import ScheduleItem from '../components/Schedules/ScheduleItem';
+import SearchBar from '../components/Schedules/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import { styles } from '../styles/schedulesStyles';
-
-const { width } = Dimensions.get('window');
-const isTablet = width >= 768;
-const isLargeScreen = width >= 1024;
 
 export default function SchedulesScreen() {
   const { token, loading: authLoading } = useAuth();
@@ -19,12 +15,9 @@ export default function SchedulesScreen() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMoreData, setHasMoreData] = useState(true);
-  const [totalSchedules, setTotalSchedules] = useState(0);
-  const [groupedSchedules, setGroupedSchedules] = useState<Record<string, ScheduleDTO[]>>({});
-  const fadeAnim = new Animated.Value(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  const [groupedByCourse, setGroupedByCourse] = useState<Record<string, ScheduleDTO[]>>({});
 
   // Cargar perfil y horarios del usuario
   useEffect(() => {
@@ -32,293 +25,242 @@ export default function SchedulesScreen() {
     loadUserData();
   }, [token, authLoading]);
 
-  const loadUserData = async (page: number = 0, append: boolean = false) => {
+  const loadUserData = async () => {
     if (!token) return;
 
     try {
-      if (!append) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      setLoading(true);
 
-      // Obtener perfil del usuario (solo en la primera carga)
-      let currentProfile = userProfile;
-      if (!append) {
-        currentProfile = await getProfileService(token);
-        setUserProfile(currentProfile);
-      }
+      // Obtener perfil del usuario
+      const currentProfile = await getProfileService(token);
+      setUserProfile(currentProfile);
 
-      // Si aún no tenemos perfil, no podemos continuar
-      if (!currentProfile) {
-        setUserSchedules([]);
-        setTotalSchedules(0);
-        setHasMoreData(false);
-        return;
-      }
-
-      let schedules: ScheduleDTO[] = [];
-      let totalElements = 0;
-
-      if (currentProfile.role === 'COORDINADOR') {
-        // Para coordinadores, obtener todos los horarios con paginación optimizada
-        // Usar menos elementos por página en dispositivos móviles para mejor rendimiento
-        const pageSize = isLargeScreen ? 30 : isTablet ? 24 : 15;
-        const result = await getAllSchedules(token, page, pageSize);
-        if (result && result.content) {
-          schedules = append ? [...userSchedules, ...result.content] : result.content;
-          totalElements = result.totalElements || 0;
-          setHasMoreData(result.content.length === pageSize && schedules.length < totalElements);
-        } else {
-          schedules = append ? userSchedules : [];
-          totalElements = 0;
-          setHasMoreData(false);
-        }
-      } else {
-        // Para profesores y estudiantes, obtener sus horarios específicos
-        schedules = await getUserSchedules(token, currentProfile);
-        totalElements = schedules.length;
-        setHasMoreData(false);
-      }
-
+      // Obtener horarios del usuario
+      const schedules = await getUserSchedules(token, currentProfile);
       setUserSchedules(schedules);
-      setTotalSchedules(totalElements);
-      setCurrentPage(page);
 
-      // Log de depuración para verificar los horarios recibidos
-      console.log('Horarios recibidos:', schedules.length);
-      console.log('Total de horarios:', totalElements);
-      console.log('Perfil de usuario:', currentProfile?.role);
+      // Agrupar horarios por curso
+      processSchedulesByCourse(schedules);
 
-      // Agrupar horarios por día para vista organizada
-      const grouped: Record<string, ScheduleDTO[]> = {};
-      schedules.forEach(schedule => {
-        // Traducir el día a español para consistencia
-        const day = DAY_TRANSLATIONS[schedule.day] || schedule.day;
-        if (!grouped[day]) {
-          grouped[day] = [];
-        }
-        grouped[day].push(schedule);
-      });
-
-      // Ordenar horarios dentro de cada día por hora de inicio
-      Object.keys(grouped).forEach(day => {
-        grouped[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
-      });
-
-      setGroupedSchedules(grouped);
-
-      // Animación de entrada (solo en la primera carga)
-      if (!append) {
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-      }
+      // Expandir solo los primeros 2 cursos inicialmente
+      const initialExpanded = new Set<string>();
+      const courseKeys = [...new Set(schedules.map(s => s.courseId.toString()))].slice(0, 2);
+      courseKeys.forEach(key => initialExpanded.add(key));
+      setExpandedCourses(initialExpanded);
 
     } catch (error) {
       console.error('Error loading user data:', error);
-      // En caso de error, mostrar estado vacío
       setUserSchedules([]);
-      setTotalSchedules(0);
-      setHasMoreData(false);
+      setGroupedByCourse({});
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
+  };
+
+  const processSchedulesByCourse = (schedules: ScheduleDTO[]) => {
+    const grouped: Record<string, ScheduleDTO[]> = {};
+    const uniqueSchedules = new Set(); // Para evitar duplicados
+
+    schedules.forEach(schedule => {
+      // Crear un identificador único para cada horario
+      const scheduleId = `${schedule.id}-${schedule.day}-${schedule.startTime}-${schedule.endTime}`;
+
+      // Solo agregar si no está duplicado
+      if (!uniqueSchedules.has(scheduleId)) {
+        uniqueSchedules.add(scheduleId);
+        const courseKey = schedule.courseId.toString();
+        if (!grouped[courseKey]) {
+          grouped[courseKey] = [];
+        }
+        grouped[courseKey].push(schedule);
+      }
+    });
+
+    // Ordenar horarios dentro de cada curso por día y hora
+    Object.keys(grouped).forEach(courseKey => {
+      grouped[courseKey].sort((a, b) => {
+        // Primero por día (orden correcto: Lunes a Domingo)
+        const dayOrder = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
+        const dayComparison = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+        if (dayComparison !== 0) return dayComparison;
+
+        // Luego por hora de inicio
+        return a.startTime.localeCompare(b.startTime);
+      });
+    });
+
+    setGroupedByCourse(grouped);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    setCurrentPage(0);
-    setHasMoreData(true);
-    await loadUserData(0, false);
+    await loadUserData();
     setRefreshing(false);
   };
 
-  // Función para obtener los horarios organizados por día
-  const getOrganizedSchedules = () => {
-    const sortedDays = Object.keys(groupedSchedules).sort(
-      (a, b) => {
-        const translatedA = DAY_TRANSLATIONS[a] || a;
-        const translatedB = DAY_TRANSLATIONS[b] || b;
-        return DAYS_ORDER.indexOf(translatedA) - DAYS_ORDER.indexOf(translatedB);
-      }
+  // Filtrar horarios según el término de búsqueda
+  const filteredSchedules = Object.keys(groupedByCourse).reduce((acc, courseKey) => {
+    const filtered = groupedByCourse[courseKey].filter(schedule =>
+      schedule.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      schedule.teacherName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (schedule.courseName && schedule.courseName.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
-    const organized: { day: string; schedules: ScheduleDTO[] }[] = [];
-    sortedDays.forEach(day => {
+    if (filtered.length > 0) {
+      acc[courseKey] = filtered;
+    }
+
+    return acc;
+  }, {} as Record<string, ScheduleDTO[]>);
+
+  // Función para obtener los horarios organizados por curso (limitado a 2 cursos)
+  const getOrganizedSchedules = () => {
+    const organized: { courseId: string; courseName: string; schedules: ScheduleDTO[] }[] = [];
+
+    // Obtener solo los primeros 2 cursos
+    const courseKeys = Object.keys(filteredSchedules).slice(0, 2);
+
+    courseKeys.forEach(courseKey => {
+      const courseName = userSchedules.find(s => s.courseId.toString() === courseKey)?.courseName || `Curso ${courseKey}`;
       organized.push({
-        day,
-        schedules: groupedSchedules[day]
+        courseId: courseKey,
+        courseName,
+        schedules: filteredSchedules[courseKey]
       });
     });
 
-    return organized;
+    return organized.sort((a, b) => a.courseName.localeCompare(b.courseName));
   };
 
-  // Función para renderizar cada grupo de día
-  const renderDayGroup = ({ item }: { item: { day: string; schedules: ScheduleDTO[] } }) => {
-    const { day, schedules } = item;
-    const getDayInfo = (day: string) => {
-      const dayData = {
-        'LUNES': { color: '#3b82f6', short: 'Lun', full: 'Lunes' },
-        'MARTES': { color: '#10b981', short: 'Mar', full: 'Martes' },
-        'MIÉRCOLES': { color: '#f59e0b', short: 'Mié', full: 'Miércoles' },
-        'JUEVES': { color: '#ef4444', short: 'Jue', full: 'Jueves' },
-        'VIERNES': { color: '#8b5cf6', short: 'Vie', full: 'Viernes' },
-        'SÁBADO': { color: '#06b6d4', short: 'Sáb', full: 'Sábado' },
-        'DOMINGO': { color: '#ec4899', short: 'Dom', full: 'Domingo' },
-      };
-      return dayData[day as keyof typeof dayData] || { color: '#6b7280', short: day, full: day };
-    };
-
-    // Traducir el día si es necesario
-    const translatedDay = DAY_TRANSLATIONS[day] || day;
-    const dayInfo = getDayInfo(translatedDay);
-
-    return (
-      <View style={styles.dayGroup}>
-        <View style={styles.dayHeader}>
-          <View style={[styles.dayBadge, { backgroundColor: dayInfo.color }]}>
-            <Text style={styles.dayBadgeText}>
-              {dayInfo.short}
-            </Text>
-          </View>
-          <Text style={styles.dayHeaderText}>{dayInfo.full}</Text>
-          <Text style={styles.dayCountText}>{schedules.length} horario{schedules.length !== 1 ? 's' : ''}</Text>
-        </View>
-
-        <View style={styles.daySchedules}>
-          {schedules.map((schedule) => (
-            <ScheduleItem
-              key={`${schedule.id}-${schedule.day}-${schedule.startTime}`}
-              schedule={schedule}
-              isCoordinatorView={userProfile?.role === 'COORDINADOR'}
-              onPress={() => handleSchedulePress(schedule)}
-            />
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  const loadMoreData = async () => {
-    if (!loadingMore && hasMoreData && userProfile?.role === 'COORDINADOR') {
-      const nextPage = currentPage + 1;
-      await loadUserData(nextPage, true);
+  // Función para togglear la expansión de un curso
+  const toggleCourseExpansion = (courseId: string) => {
+    const newExpanded = new Set(expandedCourses);
+    if (newExpanded.has(courseId)) {
+      newExpanded.delete(courseId);
+    } else {
+      newExpanded.add(courseId);
     }
+    setExpandedCourses(newExpanded);
   };
 
-  const handleSchedulePress = (schedule: ScheduleDTO) => {
-    // Aquí se puede implementar navegación a detalles del horario
-    console.log('Schedule pressed:', schedule);
-  };
+  // Función para renderizar cada grupo de curso
+  const renderCourseGroup = ({ item }: { item: { courseId: string; courseName: string; schedules: ScheduleDTO[] } }) => {
+    const isExpanded = expandedCourses.has(item.courseId);
 
-  const getNumColumns = () => {
-    if (userProfile?.role !== 'COORDINADOR') return 1;
-    if (isLargeScreen) return 3;
-    if (isTablet) return 2;
-    return 2; // Móviles también usan 2 columnas para mejor uso del espacio
-  };
+    // Asignar color por curso para consistencia visual
+    const courseColors = [
+      '#3b82f6', // Azul
+      '#10b981', // Verde
+      '#f59e0b', // Naranja
+      '#ef4444', // Rojo
+      '#8b5cf6', // Morado
+      '#06b6d4', // Cian
+    ];
 
-  const renderScheduleItem = ({ item, index }: { item: ScheduleDTO; index: number }) => {
-    const isCoordinatorView = userProfile?.role === 'COORDINADOR';
-    const numColumns = getNumColumns();
+    const colorIndex = parseInt(item.courseId) % courseColors.length;
+    const courseColor = courseColors[colorIndex];
 
     return (
-      <Animated.View
-        style={[
-          isCoordinatorView ? styles.gridItem : styles.scheduleItem,
-          {
-            opacity: fadeAnim,
-            transform: [{
-              translateY: fadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30 * (Math.floor(index / numColumns) + 1), 0],
-              }),
-            }],
-          },
-        ]}
-      >
-        <ScheduleItem
-          schedule={item}
-          isCoordinatorView={isCoordinatorView}
-          onPress={() => handleSchedulePress(item)}
-        />
-      </Animated.View>
+      <View style={styles.newCourseCard}>
+        {/* Header del curso (clickable para expandir/colapsar) */}
+        <TouchableOpacity
+          style={styles.newCourseHeader}
+          onPress={() => toggleCourseExpansion(item.courseId)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.newCourseHeaderContent}>
+            <View style={[styles.newCourseBadge, { backgroundColor: courseColor }]}>
+              <Text style={styles.newCourseBadgeText}>
+                {item.courseName.split(' ').map(word => word[0]).join('').substring(0, 2)}
+              </Text>
+            </View>
+            <View style={styles.newCourseInfo}>
+              <Text style={styles.newCourseName}>{item.courseName}</Text>
+              <Text style={styles.newCourseScheduleCount}>
+                {item.schedules.length} horario{item.schedules.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.newCourseChevron}>
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color="#64748b"
+            />
+          </View>
+        </TouchableOpacity>
+  
+        {/* Contenido del curso (solo visible cuando está expandido) */}
+        {isExpanded && (
+          <View style={styles.newCourseContent}>
+            {item.schedules.map((schedule) => (
+              <View
+                key={`${schedule.id}-${schedule.day}-${schedule.startTime}`}
+                style={[styles.newScheduleItem, { borderLeftColor: courseColor }]}
+              >
+                <View style={styles.newScheduleHeader}>
+                  <View style={[styles.newScheduleDayBadge, { backgroundColor: `${courseColor}20` }]}>
+                    <Text style={[styles.newScheduleDayText, { color: courseColor }]}>
+                      {schedule.day.substring(0, 3)}
+                    </Text>
+                  </View>
+                  <Text style={styles.newScheduleTime}>
+                    {schedule.startTime} - {schedule.endTime}
+                  </Text>
+                </View>
+                <Text style={styles.newScheduleSubject}>{schedule.subjectName}</Text>
+                <Text style={styles.newScheduleTeacher}>{schedule.teacherName}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.newLoadingContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Cargando tus horarios...</Text>
+        <Text style={styles.loadingText}>Cargando horarios...</Text>
       </View>
     );
   }
 
-  const renderFooter = () => {
-    if (!loadingMore) return null;
-
-    return (
-      <View style={styles.loadingMoreContainer}>
-        <ActivityIndicator size="small" color="#3b82f6" />
-        <Text style={styles.loadingMoreText}>Cargando más horarios...</Text>
-      </View>
-    );
-  };
-
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header con título */}
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitleNew}>
+        <Text style={styles.headerTitle}>
           {userProfile?.role === 'COORDINADOR'
             ? 'Gestión de Horarios'
             : userProfile?.role === 'MAESTRO'
             ? 'Mis Horarios de Clase'
-            : 'Mi Horario Académico'
-          }
+            : 'Mi Horario Académico'}
         </Text>
         <Text style={styles.headerSubtitle}>
           {userProfile?.role === 'COORDINADOR'
-            ? `${totalSchedules} horarios gestionados`
-            : 'Mantén tu horario académico al día'
-          }
+            ? `Horarios organizados por cursos`
+            : 'Mis horarios académicos'}
         </Text>
       </View>
 
-      {/* Estadísticas para coordinadores */}
-      {userProfile?.role === 'COORDINADOR' && totalSchedules > 0 && (
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{totalSchedules}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              {userSchedules.filter(s => s.day === 'LUNES' || s.day === 'Monday').length}
-            </Text>
-            <Text style={styles.statLabel}>Lunes</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              {userSchedules.filter(s => s.day === 'MARTES' || s.day === 'Tuesday').length}
-            </Text>
-            <Text style={styles.statLabel}>Martes</Text>
-          </View>
-        </View>
-      )}
+      {/* Barra de búsqueda */}
+      <View style={styles.searchContainer}>
+        <SearchBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          onClear={() => setSearchTerm('')}
+          placeholder="Buscar horarios por materia, profesor o curso..."
+        />
+      </View>
 
-      {/* Lista de horarios organizada por día */}
-      <View style={styles.content}>
+      {/* Lista de horarios organizada por curso */}
+      <View style={{ flex: 1 }}>
         <FlatList
           data={getOrganizedSchedules()}
-          keyExtractor={(item) => item.day}
-          renderItem={renderDayGroup}
+          keyExtractor={(item) => item.courseId}
+          renderItem={renderCourseGroup}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -327,28 +269,23 @@ export default function SchedulesScreen() {
               tintColor="#3b82f6"
             />
           }
-          onEndReached={loadMoreData}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>
                 {userProfile?.role === 'COORDINADOR'
                   ? 'No hay horarios registrados'
-                  : 'No tienes horarios asignados'
-                }
+                  : 'No tienes horarios asignados'}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {userProfile?.role === 'COORDINADOR'
                   ? 'Los horarios aparecerán aquí cuando sean creados.'
                   : userProfile?.role === 'MAESTRO'
                   ? 'Cuando se te asignen clases, aparecerán aquí.'
-                  : 'Cuando se genere tu horario académico, aparecerá aquí.'
-                }
+                  : 'Cuando se genere tu horario académico, aparecerá aquí.'}
               </Text>
             </View>
           }
-          contentContainerStyle={userSchedules.length === 0 ? styles.emptyList : undefined}
+          contentContainerStyle={userSchedules.length === 0 ? styles.emptyContainer : { paddingHorizontal: 20, paddingTop: 16 }}
           showsVerticalScrollIndicator={false}
         />
       </View>

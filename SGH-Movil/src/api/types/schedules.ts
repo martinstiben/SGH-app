@@ -9,4 +9,5 @@ export interface ScheduleDTO {
   day: string;                   // "Lunes"
   startTime: string;             // "08:00"
   endTime: string;               // "09:00"
+  scheduleName?: string;         // Nombre descriptivo del horario
 }
