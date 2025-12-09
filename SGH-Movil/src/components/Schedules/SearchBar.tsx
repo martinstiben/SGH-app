@@ -38,6 +38,9 @@ export default function SearchBar({
         placeholderTextColor="#94a3b8"
         autoCapitalize="none"
         autoCorrect={false}
+        blurOnSubmit={false}
+        keyboardType="default"
+        returnKeyType="search"
       />
 
       {searchTerm.length > 0 && (

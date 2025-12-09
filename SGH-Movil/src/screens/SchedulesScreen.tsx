@@ -5,6 +5,7 @@ import { getProfileService } from '../api/services/authService';
 import { getUserSchedules } from '../api/services/scheduleService';
 import { UserProfile } from '../api/types/auth';
 import { ScheduleDTO } from '../api/types/schedules';
+import Pagination from '../components/Schedules/Pagination';
 import SearchBar from '../components/Schedules/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import { styles } from '../styles/schedulesStyles';
@@ -18,6 +19,8 @@ export default function SchedulesScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
   const [groupedByCourse, setGroupedByCourse] = useState<Record<string, ScheduleDTO[]>>({});
+  const [currentPage, setCurrentPage] = useState(0);
+  const coursesPerPage = 3;
 
   // Cargar perfil y horarios del usuario
   useEffect(() => {
@@ -42,11 +45,8 @@ export default function SchedulesScreen() {
       // Agrupar horarios por curso
       processSchedulesByCourse(schedules);
 
-      // Expandir solo los primeros 2 cursos inicialmente
-      const initialExpanded = new Set<string>();
-      const courseKeys = [...new Set(schedules.map(s => s.courseId.toString()))].slice(0, 2);
-      courseKeys.forEach(key => initialExpanded.add(key));
-      setExpandedCourses(initialExpanded);
+      // Inicialmente no expandir ningún curso
+      setExpandedCourses(new Set());
 
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -113,12 +113,12 @@ export default function SchedulesScreen() {
     return acc;
   }, {} as Record<string, ScheduleDTO[]>);
 
-  // Función para obtener los horarios organizados por curso (limitado a 2 cursos)
+  // Función para obtener los horarios organizados por curso con paginación
   const getOrganizedSchedules = () => {
     const organized: { courseId: string; courseName: string; schedules: ScheduleDTO[] }[] = [];
 
-    // Obtener solo los primeros 2 cursos
-    const courseKeys = Object.keys(filteredSchedules).slice(0, 2);
+    // Obtener todos los cursos
+    const courseKeys = Object.keys(filteredSchedules);
 
     courseKeys.forEach(courseKey => {
       const courseName = userSchedules.find(s => s.courseId.toString() === courseKey)?.courseName || `Curso ${courseKey}`;
@@ -129,8 +129,24 @@ export default function SchedulesScreen() {
       });
     });
 
-    return organized.sort((a, b) => a.courseName.localeCompare(b.courseName));
+    // Ordenar primero por nombre de curso
+    const sortedCourses = organized.sort((a, b) => a.courseName.localeCompare(b.courseName));
+
+    // Aplicar paginación
+    const startIndex = currentPage * coursesPerPage;
+    const endIndex = startIndex + coursesPerPage;
+    const paginatedCourses = sortedCourses.slice(startIndex, endIndex);
+
+    return paginatedCourses;
   };
+
+  // Función para cambiar de página
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  // Calcular total de páginas
+  const totalPages = Math.ceil(Object.keys(filteredSchedules).length / coursesPerPage);
 
   // Función para togglear la expansión de un curso
   const toggleCourseExpansion = (courseId: string) => {
@@ -176,9 +192,6 @@ export default function SchedulesScreen() {
             </View>
             <View style={styles.newCourseInfo}>
               <Text style={styles.newCourseName}>{item.courseName}</Text>
-              <Text style={styles.newCourseScheduleCount}>
-                {item.schedules.length} horario{item.schedules.length !== 1 ? 's' : ''}
-              </Text>
             </View>
           </View>
           <View style={styles.newCourseChevron}>
@@ -199,17 +212,12 @@ export default function SchedulesScreen() {
                 style={[styles.newScheduleItem, { borderLeftColor: courseColor }]}
               >
                 <View style={styles.newScheduleHeader}>
-                  <View style={[styles.newScheduleDayBadge, { backgroundColor: `${courseColor}20` }]}>
-                    <Text style={[styles.newScheduleDayText, { color: courseColor }]}>
-                      {schedule.day.substring(0, 3)}
-                    </Text>
-                  </View>
-                  <Text style={styles.newScheduleTime}>
-                    {schedule.startTime} - {schedule.endTime}
+                  <Text style={[styles.newScheduleDayText, { color: courseColor }]}>
+                    {schedule.day} - {schedule.startTime} a {schedule.endTime}
                   </Text>
                 </View>
-                <Text style={styles.newScheduleSubject}>{schedule.subjectName}</Text>
-                <Text style={styles.newScheduleTeacher}>{schedule.teacherName}</Text>
+                <Text style={styles.newScheduleSubject}>Materia: {schedule.subjectName}</Text>
+                <Text style={styles.newScheduleTeacher}>Profesor: {schedule.teacherName}</Text>
               </View>
             ))}
           </View>
@@ -287,6 +295,15 @@ export default function SchedulesScreen() {
           }
           contentContainerStyle={userSchedules.length === 0 ? styles.emptyContainer : { paddingHorizontal: 20, paddingTop: 16 }}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            totalPages > 1 ? (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            ) : null
+          }
         />
       </View>
     </View>

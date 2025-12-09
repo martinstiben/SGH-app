@@ -530,6 +530,8 @@ export const styles = StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    borderBottomWidth: 3,
+    borderBottomColor: '#cbd5e1',
   },
 
   newScheduleHeader: {
@@ -537,6 +539,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
 
   newScheduleDayBadge: {
@@ -544,14 +549,17 @@ export const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     backgroundColor: '#f1f5f9',
+    minWidth: 80,
   },
 
   newScheduleDayText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1e293b',
+    textTransform: 'none',
+    letterSpacing: 0,
+    textAlign: 'left',
+    marginBottom: 4,
   },
 
   newScheduleTime: {
