@@ -98,20 +98,48 @@ export default function SchedulesScreen() {
     setRefreshing(false);
   };
 
-  // Filtrar horarios según el término de búsqueda
-  const filteredSchedules = Object.keys(groupedByCourse).reduce((acc, courseKey) => {
-    const filtered = groupedByCourse[courseKey].filter(schedule =>
-      schedule.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schedule.teacherName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (schedule.courseName && schedule.courseName.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-
-    if (filtered.length > 0) {
-      acc[courseKey] = filtered;
+  // Filtrado mejorado por cualquier término de búsqueda
+  const filteredSchedules = React.useMemo(() => {
+    if (!searchTerm || searchTerm.trim() === '') {
+      return groupedByCourse;
     }
 
-    return acc;
-  }, {} as Record<string, ScheduleDTO[]>);
+    const normalizedSearchTerm = searchTerm.toLowerCase().trim();
+    const result: Record<string, ScheduleDTO[]> = {};
+
+    Object.keys(groupedByCourse).forEach(courseKey => {
+      const courseSchedules = groupedByCourse[courseKey];
+
+      if (courseSchedules.length === 0) return;
+
+      // Obtener información del curso - manejar el caso cuando courseName es undefined
+      const courseName = courseSchedules[0]?.courseName || `Curso ${courseKey}`;
+      const normalizedCourseName = courseName.toLowerCase();
+      const courseId = courseKey.toLowerCase();
+
+      // Buscar coincidencias en el nombre del curso (normalizado)
+      const nameMatches = normalizedCourseName.includes(normalizedSearchTerm);
+
+      // Buscar coincidencias en el ID del curso (para búsquedas numéricas)
+      const idMatches = courseId.includes(normalizedSearchTerm);
+
+      // Buscar coincidencias sin espacios (para "Curso1" cuando se busca "curso 1")
+      const noSpacesCourseName = normalizedCourseName.replace(/\s+/g, '');
+      const noSpacesSearchTerm = normalizedSearchTerm.replace(/\s+/g, '');
+      const noSpacesMatches = noSpacesCourseName.includes(noSpacesSearchTerm);
+
+      // Buscar coincidencias con espacios (para "Curso 1" cuando se busca "Curso1")
+      const withSpacesCourseName = normalizedCourseName.replace(/(\d+)/g, ' $1').replace(/\s+/g, ' ').trim();
+      const withSpacesMatches = withSpacesCourseName.includes(normalizedSearchTerm);
+
+      // Si hay alguna coincidencia, incluir el curso en los resultados
+      if (nameMatches || idMatches || noSpacesMatches || withSpacesMatches) {
+        result[courseKey] = courseSchedules;
+      }
+    });
+
+    return result;
+  }, [groupedByCourse, searchTerm]);
 
   // Función para obtener los horarios organizados por curso con paginación
   const getOrganizedSchedules = () => {
@@ -237,7 +265,7 @@ export default function SchedulesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header con título */}
+      {/* Header con título y mensaje dinámico */}
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>
           {userProfile?.role === 'COORDINADOR'
@@ -251,6 +279,11 @@ export default function SchedulesScreen() {
             ? `Horarios organizados por cursos`
             : 'Mis horarios académicos'}
         </Text>
+        {searchTerm && (
+          <Text style={[styles.headerSubtitle, { color: '#3b82f6', marginTop: 4, fontWeight: '500' }]}>
+            Mostrando resultados para: "{searchTerm}"
+          </Text>
+        )}
       </View>
 
       {/* Barra de búsqueda */}
@@ -259,7 +292,7 @@ export default function SchedulesScreen() {
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           onClear={() => setSearchTerm('')}
-          placeholder="Buscar horarios por materia, profesor o curso..."
+          placeholder="Filtrar por cursos..."
         />
       </View>
 
