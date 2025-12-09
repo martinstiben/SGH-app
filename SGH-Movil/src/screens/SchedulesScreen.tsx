@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, Dimensions, FlatList, RefreshControl, Text
 import { getProfileService } from '../api/services/authService';
 import { getAllSchedules, getUserSchedules } from '../api/services/scheduleService';
 import { UserProfile } from '../api/types/auth';
+import { DAYS_ORDER, DAY_TRANSLATIONS } from '../api/types/days';
 import { ScheduleDTO } from '../api/types/schedules';
 import ScheduleItem from '../components/Schedules/ScheduleItem';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +23,7 @@ export default function SchedulesScreen() {
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [totalSchedules, setTotalSchedules] = useState(0);
+  const [groupedSchedules, setGroupedSchedules] = useState<Record<string, ScheduleDTO[]>>({});
   const fadeAnim = new Animated.Value(0);
 
   // Cargar perfil y horarios del usuario
@@ -83,6 +85,29 @@ export default function SchedulesScreen() {
       setTotalSchedules(totalElements);
       setCurrentPage(page);
 
+      // Log de depuración para verificar los horarios recibidos
+      console.log('Horarios recibidos:', schedules.length);
+      console.log('Total de horarios:', totalElements);
+      console.log('Perfil de usuario:', currentProfile?.role);
+
+      // Agrupar horarios por día para vista organizada
+      const grouped: Record<string, ScheduleDTO[]> = {};
+      schedules.forEach(schedule => {
+        // Traducir el día a español para consistencia
+        const day = DAY_TRANSLATIONS[schedule.day] || schedule.day;
+        if (!grouped[day]) {
+          grouped[day] = [];
+        }
+        grouped[day].push(schedule);
+      });
+
+      // Ordenar horarios dentro de cada día por hora de inicio
+      Object.keys(grouped).forEach(day => {
+        grouped[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      });
+
+      setGroupedSchedules(grouped);
+
       // Animación de entrada (solo en la primera carga)
       if (!append) {
         Animated.timing(fadeAnim, {
@@ -110,6 +135,73 @@ export default function SchedulesScreen() {
     setHasMoreData(true);
     await loadUserData(0, false);
     setRefreshing(false);
+  };
+
+  // Función para obtener los horarios organizados por día
+  const getOrganizedSchedules = () => {
+    const sortedDays = Object.keys(groupedSchedules).sort(
+      (a, b) => {
+        const translatedA = DAY_TRANSLATIONS[a] || a;
+        const translatedB = DAY_TRANSLATIONS[b] || b;
+        return DAYS_ORDER.indexOf(translatedA) - DAYS_ORDER.indexOf(translatedB);
+      }
+    );
+
+    const organized: { day: string; schedules: ScheduleDTO[] }[] = [];
+    sortedDays.forEach(day => {
+      organized.push({
+        day,
+        schedules: groupedSchedules[day]
+      });
+    });
+
+    return organized;
+  };
+
+  // Función para renderizar cada grupo de día
+  const renderDayGroup = ({ item }: { item: { day: string; schedules: ScheduleDTO[] } }) => {
+    const { day, schedules } = item;
+    const getDayInfo = (day: string) => {
+      const dayData = {
+        'LUNES': { color: '#3b82f6', short: 'Lun', full: 'Lunes' },
+        'MARTES': { color: '#10b981', short: 'Mar', full: 'Martes' },
+        'MIÉRCOLES': { color: '#f59e0b', short: 'Mié', full: 'Miércoles' },
+        'JUEVES': { color: '#ef4444', short: 'Jue', full: 'Jueves' },
+        'VIERNES': { color: '#8b5cf6', short: 'Vie', full: 'Viernes' },
+        'SÁBADO': { color: '#06b6d4', short: 'Sáb', full: 'Sábado' },
+        'DOMINGO': { color: '#ec4899', short: 'Dom', full: 'Domingo' },
+      };
+      return dayData[day as keyof typeof dayData] || { color: '#6b7280', short: day, full: day };
+    };
+
+    // Traducir el día si es necesario
+    const translatedDay = DAY_TRANSLATIONS[day] || day;
+    const dayInfo = getDayInfo(translatedDay);
+
+    return (
+      <View style={styles.dayGroup}>
+        <View style={styles.dayHeader}>
+          <View style={[styles.dayBadge, { backgroundColor: dayInfo.color }]}>
+            <Text style={styles.dayBadgeText}>
+              {dayInfo.short}
+            </Text>
+          </View>
+          <Text style={styles.dayHeaderText}>{dayInfo.full}</Text>
+          <Text style={styles.dayCountText}>{schedules.length} horario{schedules.length !== 1 ? 's' : ''}</Text>
+        </View>
+
+        <View style={styles.daySchedules}>
+          {schedules.map((schedule) => (
+            <ScheduleItem
+              key={`${schedule.id}-${schedule.day}-${schedule.startTime}`}
+              schedule={schedule}
+              isCoordinatorView={userProfile?.role === 'COORDINADOR'}
+              onPress={() => handleSchedulePress(schedule)}
+            />
+          ))}
+        </View>
+      </View>
+    );
   };
 
   const loadMoreData = async () => {
@@ -208,25 +300,25 @@ export default function SchedulesScreen() {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>
-              {userSchedules.filter(s => s.day === 'MONDAY' || s.day === 'LUNES').length}
+              {userSchedules.filter(s => s.day === 'LUNES' || s.day === 'Monday').length}
             </Text>
             <Text style={styles.statLabel}>Lunes</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>
-              {userSchedules.filter(s => s.day === 'TUESDAY' || s.day === 'MARTES').length}
+              {userSchedules.filter(s => s.day === 'MARTES' || s.day === 'Tuesday').length}
             </Text>
             <Text style={styles.statLabel}>Martes</Text>
           </View>
         </View>
       )}
 
-      {/* Lista de horarios */}
+      {/* Lista de horarios organizada por día */}
       <View style={styles.content}>
         <FlatList
-          data={userSchedules}
-          keyExtractor={(item) => `${item.id}-${item.day}-${item.startTime}`}
-          renderItem={renderScheduleItem}
+          data={getOrganizedSchedules()}
+          keyExtractor={(item) => item.day}
+          renderItem={renderDayGroup}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -258,11 +350,6 @@ export default function SchedulesScreen() {
           }
           contentContainerStyle={userSchedules.length === 0 ? styles.emptyList : undefined}
           showsVerticalScrollIndicator={false}
-          numColumns={getNumColumns()}
-          columnWrapperStyle={userProfile?.role === 'COORDINADOR' ? {
-            justifyContent: 'flex-start',
-            paddingHorizontal: 8
-          } : undefined}
         />
       </View>
     </View>

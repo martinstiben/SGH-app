@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, ScrollView, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getProfileService, uploadProfileImageService } from '../api/services/authService';
 import { UserProfile } from '../api/types/auth';
-import { styles } from '../styles/profileStyles';
 import CustomAlert from '../components/Genericos/CustomAlert';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import { styles } from '../styles/profileStyles';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +23,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageCacheBuster, setImageCacheBuster] = useState<string>('');
 
   // Estados para alertas personalizadas
   const [alertVisible, setAlertVisible] = useState(false);
@@ -85,7 +86,10 @@ export default function ProfileScreen() {
 
             // Solo si la subida es exitosa, recargar el perfil para obtener la nueva imagen del servidor
             await loadProfile();
-
+      
+            // Forzar actualización de la imagen agregando un cache buster
+            setImageCacheBuster(Date.now().toString());
+      
             setAlertTitle('¡Foto actualizada!');
             setAlertMessage('Tu foto de perfil se ha actualizado correctamente.');
             setAlertType('success');
@@ -188,7 +192,7 @@ export default function ProfileScreen() {
               <Image
                 source={
                   profile.photoUrl
-                    ? { uri: profile.photoUrl }
+                    ? { uri: `${profile.photoUrl}?cacheBuster=${imageCacheBuster}` }
                     : require('../assets/images/user.png')
                 }
                 style={styles.profilePhoto}
@@ -282,7 +286,7 @@ export default function ProfileScreen() {
         confirmText="Cerrar Sesión"
         cancelText="Cancelar"
         autoClose={alertType === 'success'}
-        autoCloseDelay={2000}
+        autoCloseDelay={3000}
       />
     </SafeAreaView>
   );

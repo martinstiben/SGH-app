@@ -184,6 +184,62 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  // Estilos para organización por día
+  dayGroup: {
+    marginBottom: 24,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: '#f1f5f9',
+  },
+  dayHeaderText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    textTransform: 'capitalize',
+  },
+  dayCountText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  daySchedules: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+
+  // Estilos para el badge de día
+  dayBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  dayBadgeText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+    textTransform: 'uppercase',
+  },
+
   // Estilos legacy para compatibilidad
   headerTitle: {
     fontSize: 24,

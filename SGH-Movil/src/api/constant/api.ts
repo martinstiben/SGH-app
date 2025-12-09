@@ -1,1 +1,1 @@
-export const API_URL = 'http://72.61.71.9:8082';
+export const API_URL = 'https://app.sgh-sistema-gestion-horarios.online/api';

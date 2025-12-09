@@ -42,7 +42,7 @@ export async function getSchedulesByCourse(token: string, courseId: number): Pro
 // Función para obtener todos los horarios (para coordinadores)
 export async function getAllSchedules(token: string, page: number = 0, size: number = 50): Promise<{ content: ScheduleDTO[]; totalElements: number; totalPages: number }> {
   try {
-    const response = await fetch(`${API_URL}/schedules-crud/all?page=${page}&size=${size}`, {
+    const response = await fetch(`${API_URL}/schedules-crud?page=${page}&size=${size}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
